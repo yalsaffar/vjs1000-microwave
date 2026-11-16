@@ -2,6 +2,8 @@
 
 **A Video.js v10 skin that turns the player into a countertop microwave, sitting in a 3D kitchen you can light up and walk back from.**
 
+**Live: [vjs1000-microwave.vercel.app](https://vjs1000-microwave.vercel.app)**
+
 Made for the [Contra × Video.js Skins Design Challenge](https://contra.com/community/topic/videojsskinschallenge/guidelines).
 
 ![VJS·1000 in action](docs/demo.gif)
