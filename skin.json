@@ -1,0 +1,9 @@
+{
+  "name": "microwave",
+  "framework": "html",
+  "styling": "css",
+  "preset": "video",
+  "base": "scaffold",
+  "videojs": "10.4.0",
+  "source": "src"
+}

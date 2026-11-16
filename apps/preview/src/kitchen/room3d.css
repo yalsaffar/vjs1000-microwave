@@ -1,0 +1,1826 @@
+/* ==========================================================================
+   VJS·1000 kitchen: a CSS 3D diorama around the microwave.
+   World origin = counter top, under the centre of the microwave's front face.
+   +x right, +y down, +z toward the viewer. Everything scales from --M.
+
+   State on <html>:  data-lights="on|off"  data-sky="day|dusk|night"
+                     data-cooking  --amb/--amb-l/--amb-r ("r g b")  .k-flicker
+   Optional hooks:   --k3-sw-x / --k3-sw-y   switch position on the back wall (× M)
+                     --k3-clock-h / --k3-clock-m   wall-clock hand angles (deg)
+
+   Lighting model: every surface (.k3-s) paints its own material, then
+     ::before  night shade   rgb(7 12 34 / night × .84)      z 2
+     ::after   light layer   screen-blended pools and spill  z 3
+   so it all works in 3D (no screen-space overlays, no filters on groups).
+   Light volumes (lamp cone, sunbeams) are plain translucent planes.
+   ========================================================================== */
+
+@property --k3-night { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --k3-cook { syntax: "<number>"; inherits: true; initial-value: 0; }
+@property --k3-glow { syntax: "<color>"; inherits: true; initial-value: rgb(255 186 110); }
+@property --k3-glow-l { syntax: "<color>"; inherits: true; initial-value: rgb(255 186 110); }
+@property --k3-glow-r { syntax: "<color>"; inherits: true; initial-value: rgb(255 186 110); }
+
+:root {
+  --k3-night: 0;
+  --k3-cook: 0;
+  --k3-glow: rgb(var(--amb, 255 186 110));
+  --k3-glow-l: rgb(var(--amb-l, var(--amb, 255 186 110)));
+  --k3-glow-r: rgb(var(--amb-r, var(--amb, 255 186 110)));
+  /* window light by sky: colour, daylight strength, moonlight strength (lights off) */
+  --k3-pc: 255 226 168;
+  --k3-pa: 0.42;
+  --k3-ma: 0;
+  --k3-refl: 0.04;
+  background: color-mix(in srgb, #e8d6b6, #070a14 calc(var(--k3-night) * 100%));
+  transition:
+    --k3-night 0.35s ease-out,
+    --k3-cook 0.5s ease,
+    --k3-glow 0.3s linear,
+    --k3-glow-l 0.3s linear,
+    --k3-glow-r 0.3s linear;
+}
+:root[data-lights="off"] { --k3-night: 1; }
+:root[data-cooking] { --k3-cook: 1; }
+:root[data-sky="dusk"] { --k3-pc: 255 150 104; --k3-pa: 0.3; --k3-ma: 0.16; --k3-refl: 0.12; }
+:root[data-sky="night"] { --k3-pc: 150 182 255; --k3-pa: 0; --k3-ma: 0.46; --k3-refl: 0.22; }
+
+body {
+  margin: 0;
+  background: color-mix(in srgb, #e8d6b6, #070a14 calc(var(--k3-night) * 100%));
+  color: #2a2620;
+  font-family: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+}
+
+media-i18n,
+video-player { display: contents; }
+
+.k-sr {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Room geometry ---------------------------------------------- */
+
+.k3-room {
+  --m: var(--M, 600px);
+  --d: var(--D, calc(var(--m) * 0.62));
+  --h: var(--H, calc(var(--m) * 0.45));
+  --hw: calc(var(--m) * 1.7);                     /* half room width */
+  --rw: calc(var(--m) * 3.4);
+  --wz: calc(-1 * var(--d) - 70px);               /* back wall plane */
+  --cf: calc(var(--m) * 0.45);                    /* counter front */
+  --cd: calc(var(--cf) - var(--wz));              /* counter depth */
+  --ct: calc(var(--m) * 0.065);                   /* slab thickness */
+  --fy: calc(var(--m) * 0.8);                     /* floor level */
+  --f0: calc(var(--m) * 0.36);                    /* floor plane, back edge (under the toe-kick) */
+  --fz: calc(var(--m) * 1.45);                    /* floor front */
+  --fth: calc(var(--m) * 0.12);                   /* floor slab thickness */
+  --ceil: calc(var(--m) * -2);
+  --wt: calc(var(--m) * 0.1);                     /* cut wall / ceiling thickness */
+  --sw: calc(var(--m) * 0.5 - var(--wz));         /* side wall length */
+  --cabd: calc(var(--m) * 0.33);
+  /* window opening on the left wall (wall-local: x from the front edge, y from the ceiling) */
+  --winl: calc(var(--m) * 0.17);
+  --winw: calc(var(--sw) - var(--m) * 0.62);
+  --wy0: calc(var(--m) * 0.36);
+  --wy1: calc(var(--m) * 1.56);
+  --rv: calc(var(--m) * 0.095);                   /* reveal depth (glass set back) */
+  /* light amounts (follow the registered numbers, so they transition) */
+  --on: calc(1 - var(--k3-night));
+  --spill: calc(var(--k3-night) * var(--k3-cook));
+  --idle: calc(var(--k3-night) * (1 - var(--k3-cook)));
+  --patch: calc(var(--k3-pa) + var(--k3-night) * var(--k3-ma));
+  --led: rgb(255 214 150 / calc(var(--on) * 0.55));
+  --gold: rgb(255 168 86 / calc(var(--on) * 0.15));
+  --oak: #c58f56;
+  --oak-hi: #dcae74;
+  --oak-lo: #9c6834;
+
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+.k3-room * { pointer-events: none; }
+
+/* groups that hold real 3D children */
+.k3-lw, .k3-rw, .k3-cab, .k3-shelf, .k3-pend, .k3-shade, .k3-wsh {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  transform-style: preserve-3d;
+}
+
+/* a surface: one flat plane with its own night shade and light layer */
+.k3-s,
+.k3-pend i,
+.k3-lw > i,
+.k3-wsh > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  box-sizing: border-box;
+  transform-origin: 0 0;
+}
+.k3-s::before,
+:is(.k3-wall, .k3-ctop, .k3-cedge, .k3-cab-bot, .k3-lw-in, .k3-rw-in, .k3-floor, .k3-ceil, .k3-base)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.k3-s::before {
+  z-index: 2;
+  background: rgb(7 12 34 / calc(var(--k3-night) * 0.84));
+}
+:is(.k3-wall, .k3-ctop, .k3-cedge, .k3-cab-bot, .k3-lw-in, .k3-rw-in, .k3-floor, .k3-ceil, .k3-base)::after {
+  z-index: 3;
+  mix-blend-mode: screen;
+}
+
+/* the dollhouse cut: wall section with plaster skins and hatched core */
+.k3-cut {
+  background:
+    linear-gradient(90deg, #f6efe0 0 3px, transparent 3px calc(100% - 3px), #f6efe0 calc(100% - 3px)),
+    linear-gradient(180deg, #f6efe0 0 3px, transparent 3px calc(100% - 3px), #f6efe0 calc(100% - 3px)),
+    repeating-linear-gradient(45deg, rgb(110 84 52 / 0.24) 0 2px, transparent 2px 10px),
+    linear-gradient(180deg, #d9cbad, #c6b593);
+  box-shadow: inset 0 0 0 1px rgb(80 60 40 / 0.4);
+}
+
+/* ---------- Back wall ---------------------------------------------------- */
+
+.k3-wall {
+  width: var(--rw);
+  height: calc(var(--m) * 2);
+  transform: translate3d(calc(-1 * var(--hw)), var(--ceil), var(--wz));
+  background:
+    /* ceiling AO under the cornice */
+    linear-gradient(180deg, rgb(60 40 20 / 0.4), rgb(60 40 20 / 0.12) calc(var(--m) * 0.12), transparent calc(var(--m) * 0.32)),
+    /* corner AO */
+    linear-gradient(90deg, rgb(60 38 18 / 0.4), rgb(60 38 18 / 0.1) calc(var(--m) * 0.12), transparent calc(var(--m) * 0.32) calc(100% - var(--m) * 0.32), rgb(60 38 18 / 0.1) calc(100% - var(--m) * 0.12), rgb(60 38 18 / 0.4)),
+    /* soft shadows cast by the upper cabinets and the corner shelves (key light from the window, left) */
+    radial-gradient(closest-side, rgb(60 36 14 / 0.46), rgb(60 36 14 / 0.22) 72%, transparent) calc(var(--m) * 0.035) calc(var(--m) * 0.03) / calc(var(--m) * 1.2) calc(var(--m) * 1.02) no-repeat,
+    radial-gradient(closest-side, rgb(60 36 14 / 0.46), rgb(60 36 14 / 0.22) 72%, transparent) calc(var(--hw) + var(--m) * 0.585) calc(var(--m) * 0.03) / calc(var(--m) * 0.86) calc(var(--m) * 1.02) no-repeat,
+    radial-gradient(closest-side, rgb(60 36 14 / 0.4), transparent) calc(var(--hw) + var(--m) * 1.28) calc(var(--m) * 0.37) / calc(var(--m) * 0.5) calc(var(--m) * 0.14) no-repeat,
+    radial-gradient(closest-side, rgb(60 36 14 / 0.4), transparent) calc(var(--hw) + var(--m) * 1.28) calc(var(--m) * 0.69) / calc(var(--m) * 0.5) calc(var(--m) * 0.14) no-repeat,
+    /* the pendant's cord shadow, very faint */
+    linear-gradient(90deg, transparent calc(var(--hw) - var(--m) * 0.6), rgb(60 36 14 / 0.08) 0 calc(var(--hw) - var(--m) * 0.594), transparent 0) 0 0 / 100% calc(var(--m) * 0.95) no-repeat,
+    /* plaster */
+    radial-gradient(circle at 30% 40%, rgb(150 115 70 / 0.08) 0 0.8px, transparent 1.4px) 0 0 / 7px 7px,
+    radial-gradient(circle at 60% 20%, rgb(255 255 255 / 0.4) 0 0.8px, transparent 1.4px) 3px 2px / 11px 9px,
+    radial-gradient(60% 50% at 50% 34%, rgb(255 248 232 / 0.55), transparent 70%),
+    linear-gradient(180deg, #f1e3c7, #e6d4b2);
+}
+.k3-wall {
+  /* the microwave's AO on the tiles */
+  --k3-ao:
+    radial-gradient(calc(var(--m) * 0.4) calc(var(--m) * 0.06) at calc(var(--hw) - var(--m) * 1.1) calc(var(--m) * 0.36), rgb(0 0 0 / 0.42), transparent),
+    radial-gradient(calc(var(--m) * 0.62) calc(var(--m) * 0.5) at 50% 100%, rgb(0 0 0 / 0.34), transparent);
+}
+.k3-wall > i { position: absolute; z-index: 1; }
+
+/* lights on the back wall */
+.k3-wall::after {
+  background:
+    /* the picture, behind and around the microwave */
+    radial-gradient(calc(var(--m) * 1.05) calc(var(--m) * 0.95) at 50% calc(var(--m) * 1.72),
+      color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 90%), transparent),
+      color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 32%), transparent) 55%, transparent),
+    radial-gradient(calc(var(--m) * 0.42) calc(var(--m) * 0.6) at calc(50% - var(--m) * 0.62) calc(var(--m) * 1.8),
+      color-mix(in srgb, var(--k3-glow-l) calc(var(--spill) * 75%), transparent), transparent),
+    radial-gradient(calc(var(--m) * 0.42) calc(var(--m) * 0.6) at calc(50% + var(--m) * 0.62) calc(var(--m) * 1.8),
+      color-mix(in srgb, var(--k3-glow-r) calc(var(--spill) * 75%), transparent), transparent),
+    /* the clock display's cyan, in the dark */
+    radial-gradient(calc(var(--m) * 0.3) calc(var(--m) * 0.26) at calc(50% + var(--m) * 0.42) calc(var(--m) * 1.86),
+      rgb(141 255 224 / calc(var(--idle) * 0.16)), transparent),
+    /* under-cabinet LED fans: bright under the strip, falling off down the tiles */
+    radial-gradient(calc(var(--m) * 0.62) calc(var(--m) * 0.62) at calc(var(--hw) - var(--m) * 1.125) calc(var(--m) * 0.86),
+      var(--led), rgb(255 214 150 / calc(var(--on) * 0.16)) 45%, transparent),
+    radial-gradient(calc(var(--m) * 0.42) calc(var(--m) * 0.62) at calc(var(--hw) + var(--m) * 0.95) calc(var(--m) * 0.86),
+      var(--led), rgb(255 214 150 / calc(var(--on) * 0.16)) 45%, transparent),
+    /* the ceiling light washing down the wall */
+    radial-gradient(calc(var(--m) * 1.5) calc(var(--m) * 0.55) at calc(var(--hw) + var(--m) * 0.2) 0,
+      rgb(255 228 180 / calc(var(--on) * 0.3)), transparent),
+    /* pendant: a warm wash on the wall behind and below the shade */
+    radial-gradient(calc(var(--m) * 0.5) calc(var(--m) * 0.75) at calc(var(--hw) - var(--m) * 0.66) calc(var(--m) * 1.5),
+      rgb(255 200 130 / calc(var(--on) * 0.26)), transparent),
+    radial-gradient(calc(var(--m) * 0.22) calc(var(--m) * 0.16) at calc(var(--hw) - var(--m) * 0.66) calc(var(--m) * 1.08),
+      rgb(255 214 150 / calc(var(--on) * 0.22)), transparent),
+    /* window light leaking along the left of the wall */
+    radial-gradient(calc(var(--m) * 0.9) calc(var(--m) * 1.1) at 0 calc(var(--m) * 1.1),
+      rgb(var(--k3-pc) / calc(var(--patch) * 0.45)), transparent),
+    /* golden hour */
+    linear-gradient(105deg, var(--gold), transparent 60%);
+}
+
+/* backsplash: deep green glazed subway tile */
+.k3-tiles {
+  --t: calc(var(--m) * 0.1);
+  --th: calc(var(--t) / 2);
+  --grout: rgb(222 222 204 / 0.72);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--m) * 1.15);
+  background:
+    /* under-cabinet shadow line and counter AO */
+    linear-gradient(180deg, rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.14) calc(var(--m) * 0.04), transparent calc(var(--m) * 0.1)),
+    linear-gradient(0deg, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.14) calc(var(--m) * 0.04), transparent calc(var(--m) * 0.1)),
+    linear-gradient(90deg, rgb(0 0 0 / 0.4), transparent calc(var(--m) * 0.2) calc(100% - var(--m) * 0.2), rgb(0 0 0 / 0.4)),
+    var(--k3-ao, none),
+    /* long glaze reflections */
+    linear-gradient(104deg, transparent 30%, rgb(255 255 255 / 0.08) 38%, transparent 46%),
+    linear-gradient(104deg, transparent 62%, rgb(255 255 255 / 0.06) 68%, transparent 74%),
+    /* grout, with a shadow above and a lit lip below (recessed joints) */
+    repeating-linear-gradient(180deg, rgb(0 0 0 / 0.32) 0 1px, var(--grout) 1px 3px, rgb(255 255 255 / 0.18) 3px 4px, transparent 4px var(--th)),
+    conic-gradient(from 270deg at 2px var(--th), var(--grout) 0 90deg, transparent 0) 0 0 / var(--t) var(--t),
+    conic-gradient(from 270deg at 2px var(--th), var(--grout) 0 90deg, transparent 0) calc(var(--t) / 2) var(--th) / var(--t) var(--t),
+    conic-gradient(from 270deg at 3px var(--th), rgb(0 0 0 / 0.22) 0 90deg, transparent 0) 2px 0 / var(--t) var(--t),
+    conic-gradient(from 270deg at 3px var(--th), rgb(0 0 0 / 0.22) 0 90deg, transparent 0) calc(var(--t) / 2 + 2px) var(--th) / var(--t) var(--t),
+    /* per-tile pillowed glaze */
+    linear-gradient(180deg, rgb(255 255 255 / 0.26), transparent 30%, transparent 70%, rgb(0 0 0 / 0.2)) 0 0 / var(--t) var(--th),
+    linear-gradient(90deg, rgb(255 255 255 / 0.12), transparent 20% 85%, rgb(0 0 0 / 0.12)) 0 0 / var(--t) var(--th),
+    radial-gradient(70% 60% at 30% 30%, rgb(140 200 175 / 0.2), transparent) 0 0 / calc(var(--t) * 3) calc(var(--t) * 1.5),
+    linear-gradient(180deg, #2f5d50, #285145);
+}
+
+.k3-wall-top {
+  width: calc(var(--rw) + 2 * var(--wt));
+  height: var(--wt);
+  transform: translate3d(calc(-1 * var(--hw) - var(--wt)), calc(var(--ceil) - var(--wt)), calc(var(--wz) - var(--wt))) rotateX(90deg);
+}
+
+/* wall clock, left of the print */
+.k3-clock {
+  left: calc(var(--hw) - var(--m) * 0.27);
+  top: calc(var(--m) * 0.52);
+  width: calc(var(--m) * 0.24);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 77%, #c94f3a 78% 88%, #8f2d1c 90%, transparent 91%),
+    radial-gradient(circle, #2a2620 0 4%, transparent 4.5%),
+    radial-gradient(circle, #fbf6e8 0 60%, transparent 60.5%),
+    repeating-conic-gradient(from -1.5deg, #2a2620 0 3deg, transparent 3deg 30deg),
+    radial-gradient(circle at 40% 35%, #fffdf6, #efe6d2);
+  box-shadow:
+    calc(var(--m) * 0.014) calc(var(--m) * 0.022) calc(var(--m) * 0.03) rgb(50 30 10 / 0.38),
+    inset 0 0 0 calc(var(--m) * 0.004) rgb(255 255 255 / 0.4);
+}
+.k3-clock::after {
+  content: "";
+  position: absolute;
+  inset: 14%;
+  border-radius: 50%;
+  background: linear-gradient(140deg, rgb(255 255 255 / 0.5), transparent 45%);
+}
+.k3-clock b {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 99px;
+  background: #2a2620;
+  translate: -50% -100%;
+  transform-origin: 50% 100%;
+}
+.k3-clock-h { width: 5%; height: 26%; rotate: var(--k3-clock-h, 305deg); }
+.k3-clock-m { width: 3.4%; height: 36%; rotate: var(--k3-clock-m, 60deg); }
+.k3-clock-s {
+  width: 1.4%;
+  height: 40%;
+  background: #c94f3a !important;
+  animation: k3-tick 60s steps(60) infinite;
+}
+
+/* framed mid-century print, above the microwave */
+.k3-poster {
+  left: calc(var(--hw) + var(--m) * 0.1);
+  top: calc(var(--m) * 0.2);
+  width: calc(var(--m) * 0.34);
+  height: calc(var(--m) * 0.46);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--m) * 0.03) calc(var(--m) * 0.03) calc(var(--m) * 0.022);
+  border: calc(var(--m) * 0.012) solid #2e2722;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.1), transparent calc(var(--m) * 0.02)),
+    radial-gradient(circle at 30% 40%, rgb(150 115 70 / 0.07) 0 0.8px, transparent 1.4px) 0 0 / 5px 5px,
+    #f7efdc;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.25),
+    inset calc(var(--m) * 0.004) calc(var(--m) * 0.006) calc(var(--m) * 0.01) rgb(60 40 20 / 0.35),
+    0 0 0 1px #1a1512,
+    calc(var(--m) * 0.018) calc(var(--m) * 0.028) calc(var(--m) * 0.03) rgb(50 30 10 / 0.42);
+  color: #23395a;
+  text-align: center;
+  font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+}
+.k3-poster::after {
+  /* glass glare */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(122deg, rgb(255 255 255 / 0.22), transparent 30%, transparent 64%, rgb(255 255 255 / 0.1) 70%, transparent 76%);
+}
+.k3-poster b { display: block; position: relative; }
+.k3-poster-art {
+  flex: 1;
+  border-radius: 1px;
+  overflow: hidden;
+  background:
+    /* hills */
+    radial-gradient(120% 60% at 22% 104%, #2f5d50 0 50%, transparent 50.5%),
+    radial-gradient(110% 46% at 92% 104%, #23473d 0 50%, transparent 50.5%),
+    /* rays */
+    repeating-conic-gradient(from 0deg at 50% 60%, rgb(255 236 190 / 0.2) 0 7deg, transparent 7deg 20deg),
+    /* sun */
+    radial-gradient(circle at 50% 60%, #f7c95e 0 21%, #ee8f3e 21.5% 29%, rgb(238 143 62 / 0.35) 29.5% 33%, transparent 33.5%),
+    /* sky */
+    linear-gradient(180deg, #1e5560, #3d8c84 52%, #f0c88a);
+}
+.k3-poster-art::before {
+  /* the microwave pictogram */
+  content: "";
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 9%;
+  height: 31%;
+  border-radius: 9% / 14%;
+  background:
+    radial-gradient(closest-side, #ffe1a0, #f2a04c 60%, transparent) 14% 50% / 52% 62% no-repeat,
+    linear-gradient(#2a2622, #2a2622) 14% 50% / 56% 66% no-repeat,
+    radial-gradient(circle, #c94f3a 0 38%, transparent 42%) 88% 70% / 16% 26% no-repeat,
+    repeating-linear-gradient(180deg, #8a7a64 0 1px, transparent 1px 4px) 88% 22% / 14% 30% no-repeat,
+    linear-gradient(180deg, #fbf4e2, #e4d6b8);
+  box-shadow: 0 calc(var(--m) * 0.006) 0 #b8a787, 0 calc(var(--m) * 0.012) calc(var(--m) * 0.01) rgb(0 0 0 / 0.3);
+}
+.k3-poster-t {
+  margin-top: calc(var(--m) * 0.014);
+  font-size: calc(var(--m) * 0.05);
+  font-weight: 700;
+  line-height: 0.88;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.k3-poster-t::first-line { color: #c94f3a; }
+.k3-poster-s {
+  margin-top: calc(var(--m) * 0.006);
+  font-size: calc(var(--m) * 0.017);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+/* outlet, right of the microwave */
+.k3-outlet {
+  left: calc(var(--hw) + var(--m) * 0.72);
+  top: calc(var(--m) * 1.56);
+  width: calc(var(--m) * 0.07);
+  height: calc(var(--m) * 0.1);
+  border-radius: calc(var(--m) * 0.008);
+  background:
+    radial-gradient(circle at 50% 30%, #2a2620 0 7%, transparent 8%),
+    radial-gradient(circle at 50% 70%, #2a2620 0 7%, transparent 8%),
+    linear-gradient(160deg, #fbf6ea, #ddd2bc);
+  box-shadow: 2px 3px 5px rgb(0 0 0 / 0.35), inset 0 -2px 0 rgb(150 130 100 / 0.35);
+}
+
+/* ---------- Ceiling, cornice --------------------------------------------- */
+
+/* faces down; local y runs from the front cut (z = M/2) back to the wall */
+.k3-ceil {
+  width: calc(var(--rw) + 2 * var(--wt));
+  height: calc(var(--m) * 0.5 - var(--wz) + var(--wt));
+  transform: translate3d(calc(-1 * var(--hw) - var(--wt)), var(--ceil), calc(var(--m) * 0.5)) rotateX(-90deg);
+  backface-visibility: hidden;
+  background:
+    /* AO into the back wall and side walls */
+    linear-gradient(0deg, rgb(60 40 20 / 0.5), rgb(60 40 20 / 0.16) calc(var(--wt) + var(--m) * 0.1), transparent calc(var(--wt) + var(--m) * 0.4)),
+    linear-gradient(90deg, rgb(60 40 20 / 0.45), transparent calc(var(--wt) + var(--m) * 0.32) calc(100% - var(--wt) - var(--m) * 0.32), rgb(60 40 20 / 0.45)),
+    /* the canopy's little shadow */
+    radial-gradient(closest-side, rgb(60 40 20 / 0.3), transparent) calc(var(--wt) + var(--hw) - var(--m) * 0.78) calc(var(--m) * 0.23) / calc(var(--m) * 0.24) calc(var(--m) * 0.24) no-repeat,
+    linear-gradient(180deg, #efe2c6, #e5d4b2);
+}
+.k3-ceil::after {
+  background:
+    radial-gradient(calc(var(--m) * 0.75) calc(var(--m) * 0.6) at calc(var(--wt) + var(--hw) + var(--m) * 0.2) calc(var(--m) * 0.65),
+      rgb(255 232 186 / calc(var(--on) * 0.6)), rgb(255 214 150 / calc(var(--on) * 0.18)) 45%, transparent),
+    radial-gradient(calc(var(--m) * 1.2) 60% at 50% 100%, color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 22%), transparent), transparent),
+    linear-gradient(90deg, rgb(var(--k3-pc) / calc(var(--patch) * 0.25)), transparent 40%),
+    linear-gradient(90deg, var(--gold), transparent 60%);
+}
+/* flush-mount ceiling light */
+.k3-flush {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--wt) + var(--hw) + var(--m) * 0.2);
+  top: calc(var(--m) * 0.65);
+  width: calc(var(--m) * 0.22);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%,
+      color-mix(in srgb, #fffdf4, #8d8a86 calc(var(--k3-night) * 100%)) 0 30%,
+      color-mix(in srgb, #fff2d4, #77736d calc(var(--k3-night) * 100%)) 62%,
+      color-mix(in srgb, #f4dfb8, #5f5b56 calc(var(--k3-night) * 100%)) 80%,
+      #b39a6c 82% 88%, #d9c39a 90%, transparent 92%),
+    transparent;
+  box-shadow:
+    0 0 calc(var(--m) * 0.03) calc(var(--m) * 0.01) rgb(255 236 196 / calc(var(--on) * 0.8)),
+    0 0 calc(var(--m) * 0.1) calc(var(--m) * 0.03) rgb(255 220 160 / calc(var(--on) * 0.35));
+}
+.k3-ceil-cut {
+  width: calc(var(--rw) + 2 * var(--wt));
+  height: var(--wt);
+  transform: translate3d(calc(-1 * var(--hw) - var(--wt)), calc(var(--ceil) - var(--wt)), calc(var(--m) * 0.5));
+}
+
+/* cove cornice: a 45° profiled plane where wall meets ceiling */
+.k3-crown {
+  width: var(--rw);
+  height: calc(var(--m) * 0.1);
+  transform: translate3d(calc(-1 * var(--hw)), var(--ceil), calc(var(--wz) + var(--m) * 0.07)) rotateX(-45deg);
+  background:
+    linear-gradient(180deg,
+      #b9a98b 0 3%, #fffaf0 3% 11%, #d6c7a9 11% 15%, #f8f0e0 15% 36%,
+      #e8dcc4 36% 52%, #cbbb9b 52% 56%, #fbf5e8 56% 80%, #c4b494 80% 85%, #efe5d1 85% 97%, #a8987a 97%);
+  box-shadow: 0 calc(var(--m) * 0.02) calc(var(--m) * 0.03) rgb(60 40 20 / 0.25);
+}
+.k3-crown-side {
+  width: var(--sw);
+  transform: translate3d(0, 0, calc(var(--m) * 0.07)) rotateX(-45deg);
+}
+
+/* ---------- Light switch ------------------------------------------------- */
+
+.k3-switch-wrap {
+  --swb: clamp(58px, calc(var(--m) * 0.1), 80px);
+  position: absolute;
+  z-index: 4;
+  left: calc(var(--hw) + var(--k3-sw-x, -0.95) * var(--m));
+  top: calc((2 + var(--k3-sw-y, -0.55)) * var(--m));
+  translate: -50% calc(var(--swb) * -0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.k-switch {
+  appearance: none;
+  display: block;
+  width: var(--swb);
+  height: calc(var(--swb) * 1.5);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: transparent;
+}
+.k-switch:focus-visible {
+  outline: 3px solid #1a5cff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 10px light-dark(rgb(255 255 255 / 0.92), rgb(8 11 22 / 0.9));
+}
+.k-switch-plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 12% 0;
+  border-radius: 7px;
+  background:
+    radial-gradient(120% 60% at 30% 10%, rgb(255 255 255 / 0.8), transparent 60%),
+    linear-gradient(160deg, #fbf6ea, #e6dcc7);
+  box-shadow:
+    inset 0 -2px 0 rgb(150 130 100 / 0.35),
+    inset 0 1px 0 #fff,
+    0 1px 0 rgb(0 0 0 / 0.15),
+    4px 8px 12px rgb(0 0 0 / 0.35);
+  filter: brightness(calc(1 - var(--k3-night) * 0.5)) saturate(calc(1 - var(--k3-night) * 0.3));
+}
+.k-switch:hover .k-switch-plate { background-color: #fff; }
+.k-switch-screw {
+  width: 12%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    linear-gradient(45deg, transparent 42%, rgb(80 70 55 / 0.7) 42% 58%, transparent 58%),
+    radial-gradient(circle at 35% 30%, #fff, #b9ae98);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.8);
+}
+.k-switch-rocker {
+  position: relative;
+  width: 40%;
+  height: 48%;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #d9cfb9, #f4ede0 45%, #fffdf7 55%, #fbf6ea);
+  box-shadow: inset 0 0 0 1px rgb(120 100 70 / 0.3), 0 3px 3px rgb(0 0 0 / 0.25);
+  transform: perspective(70px) rotateX(16deg);
+  transition: transform 0.12s ease-out;
+}
+.k-switch[aria-checked="false"] .k-switch-rocker {
+  background: linear-gradient(180deg, #fbf6ea, #fffdf7 45%, #f4ede0 55%, #d9cfb9);
+  box-shadow: inset 0 0 0 1px rgb(120 100 70 / 0.3), 0 -2px 3px rgb(0 0 0 / 0.2);
+  transform: perspective(70px) rotateX(-16deg);
+}
+.k-switch-led {
+  position: absolute;
+  bottom: 14%;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8a7a64;
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.4);
+}
+/* the LED glows in the dark, so the switch is easy to find */
+.k-switch[aria-checked="false"] .k-switch-led {
+  background: #ffc46e;
+  box-shadow: 0 0 4px 1px #ff9f2e, 0 0 14px 5px rgb(255 159 46 / 0.6);
+}
+.k-switch-hint {
+  padding: 1px 9px 2px;
+  border-radius: 999px;
+  background: rgb(18 26 24 / 0.82);
+  color: #f6ecd6;
+  font: 600 14px/1.2 "Barlow Condensed", "Arial Narrow", sans-serif;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+/* ---------- Left side wall + window -------------------------------------- */
+
+/* group axes: local x runs from the front cut (world z = M/2) to the back wall,
+   local y down from the ceiling, local z into the room (world +x) */
+.k3-lw { transform: translate3d(calc(-1 * var(--hw)), var(--ceil), calc(var(--m) * 0.5)) rotateY(90deg); }
+.k3-lw-in,
+.k3-lw-out,
+.k3-rw-in {
+  width: var(--sw);
+  height: calc(var(--m) * 2.8);
+}
+.k3-lw-in {
+  backface-visibility: hidden;
+  /* the window opening is a real hole */
+  clip-path: polygon(evenodd,
+    0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    var(--winl) var(--wy0), calc(var(--winl) + var(--winw)) var(--wy0),
+    calc(var(--winl) + var(--winw)) var(--wy1), var(--winl) var(--wy1), var(--winl) var(--wy0));
+  background:
+    /* casing around the opening: white trim with a soft shadow */
+    linear-gradient(#fbf7ef, #f1e9da) calc(var(--winl) - var(--m) * 0.05) calc(var(--wy0) - var(--m) * 0.05) / calc(var(--winw) + var(--m) * 0.1) calc(var(--wy1) - var(--wy0) + var(--m) * 0.05) no-repeat,
+    linear-gradient(#d8ccb4, #d8ccb4) calc(var(--winl) - var(--m) * 0.056) calc(var(--wy0) - var(--m) * 0.056) / calc(var(--winw) + var(--m) * 0.112) calc(var(--wy1) - var(--wy0) + var(--m) * 0.056) no-repeat,
+    radial-gradient(closest-side, rgb(60 40 20 / 0.32), transparent) calc(var(--winl) - var(--m) * 0.08) calc(var(--wy0) - var(--m) * 0.06) / calc(var(--winw) + var(--m) * 0.2) calc(var(--wy1) - var(--wy0) + var(--m) * 0.2) no-repeat,
+    linear-gradient(180deg, rgb(60 40 20 / 0.42), rgb(60 40 20 / 0.12) calc(var(--m) * 0.12), transparent calc(var(--m) * 0.3)),
+    linear-gradient(0deg, #1f2e28 0 calc(var(--m) * 0.05), #2a3d34 calc(var(--m) * 0.05) calc(var(--m) * 0.8), transparent calc(var(--m) * 0.8)),
+    linear-gradient(270deg, rgb(60 40 20 / 0.45), rgb(60 40 20 / 0.12) calc(var(--m) * 0.12), transparent calc(var(--m) * 0.32)),
+    linear-gradient(90deg, rgb(255 248 230 / 0.22), transparent 40%),
+    linear-gradient(180deg, #e9dbbf, #dac8a6);
+}
+.k3-lw-in::after {
+  background:
+    radial-gradient(calc(var(--m) * 0.8) calc(var(--m) * 0.7) at calc(var(--m) * 0.5) calc(var(--m) * 1.75),
+      color-mix(in srgb, var(--k3-glow-l) calc(var(--spill) * 32%), transparent), transparent),
+    radial-gradient(calc(var(--m) * 0.4) calc(var(--m) * 0.5) at calc(100% - var(--m) * 0.2) calc(var(--m) * 1.5),
+      rgb(255 214 150 / calc(var(--on) * 0.16)), transparent),
+    linear-gradient(90deg, var(--gold), transparent 70%);
+}
+.k3-tiles-side {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--m) * 1.6);
+  bottom: auto;
+  height: calc(var(--m) * 0.4);
+}
+.k3-rw-in .k3-tiles-side {
+  top: calc(var(--m) * 0.85);
+  height: calc(var(--m) * 1.15);
+}
+
+/* the view: sky, drifting clouds, hills with atmospheric perspective */
+.k3-pane {
+  --far: #a9c2bb;
+  --tr: #4f7d55;
+  --tr2: #3f6a47;
+  --near: #78a463;
+  --near2: #5f8f52;
+  width: var(--winw);
+  height: calc(var(--wy1) - var(--wy0));
+  transform: translate3d(var(--winl), var(--wy0), calc(-1 * var(--rv)));
+  overflow: hidden;
+  background:
+    radial-gradient(70% 45% at 78% 34%, rgb(255 236 190 / 0.55), transparent 70%),
+    linear-gradient(180deg, #4d8bcf 0%, #7fb3e3 38%, #bcd8ea 62%, #f2e2c4 84%, #f6d8a8 100%);
+}
+:root[data-sky="dusk"] .k3-pane {
+  --far: #a0708a;
+  --tr: #4a3557;
+  --tr2: #3a2a48;
+  --near: #3d2c4a;
+  --near2: #2f2240;
+  background:
+    radial-gradient(80% 40% at 50% 74%, rgb(255 190 120 / 0.7), transparent 70%),
+    linear-gradient(180deg, #1d2552, #4e3a74 26%, #b25d7c 52%, #ef8a5c 72%, #f9c47c 88%);
+}
+:root[data-sky="night"] .k3-pane {
+  --far: #1d2a4b;
+  --tr: #0f1830;
+  --tr2: #0b1226;
+  --near: #0b1222;
+  --near2: #080e1b;
+  background:
+    radial-gradient(50% 30% at 70% 22%, rgb(170 190 255 / 0.18), transparent 70%),
+    linear-gradient(180deg, #030716, #0a1534 45%, #18295a 78%, #253a6c);
+}
+.k3-pane::after {
+  /* glass: soft reflection, plus the warm room reflected after dark */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(116deg, transparent 14%, rgb(255 255 255 / 0.16) 22%, transparent 30%, transparent 56%, rgb(255 255 255 / 0.08) 61%, transparent 67%),
+    radial-gradient(70% 45% at 30% 85%, rgb(255 196 130 / calc(var(--on) * var(--k3-refl))), transparent);
+  box-shadow: inset 0 calc(var(--m) * 0.012) calc(var(--m) * 0.03) rgb(0 0 0 / 0.28);
+}
+.k3-pane > b { position: absolute; display: block; }
+.k3-sun {
+  top: 26%;
+  right: 16%;
+  width: 15%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffbe8 34%, #ffe08a 62%, #ffc35a);
+  box-shadow: 0 0 22px 8px rgb(255 226 150 / 0.6), 0 0 70px 30px rgb(255 214 140 / 0.35);
+}
+:root[data-sky="dusk"] .k3-sun {
+  top: auto;
+  bottom: 26%;
+  right: 42%;
+  width: 24%;
+  background: radial-gradient(circle, #ffeec0 25%, #ffa45e 70%, #ff7a48);
+  box-shadow: 0 0 40px 16px rgb(255 140 80 / 0.55);
+}
+:root[data-sky="night"] .k3-sun { display: none; }
+.k3-moon {
+  display: none;
+  top: 14%;
+  right: 24%;
+  width: 14%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 60%, rgb(170 165 135 / 0.5) 0 9%, transparent 11%),
+    radial-gradient(circle at 38% 34%, rgb(170 165 135 / 0.45) 0 7%, transparent 9%),
+    radial-gradient(circle at 40% 40%, #fffdf0, #e2dcbd 75%);
+  box-shadow: 0 0 22px 6px rgb(230 235 210 / 0.4), 0 0 60px 20px rgb(160 180 255 / 0.2);
+}
+:root[data-sky="night"] .k3-moon { display: block; }
+.k3-stars {
+  display: none;
+  inset: 0 0 35% 0;
+  background:
+    radial-gradient(1.3px 1.3px at 12% 22%, #fff, transparent),
+    radial-gradient(1px 1px at 28% 60%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 44% 14%, #fff, transparent),
+    radial-gradient(1px 1px at 56% 48%, #dfe8ff, transparent),
+    radial-gradient(1.2px 1.2px at 66% 72%, #fff, transparent),
+    radial-gradient(1px 1px at 84% 56%, #fff, transparent),
+    radial-gradient(1.3px 1.3px at 92% 30%, #fff, transparent),
+    radial-gradient(1px 1px at 6% 78%, #dfe8ff, transparent),
+    radial-gradient(1px 1px at 36% 40%, #fff, transparent),
+    radial-gradient(1.2px 1.2px at 74% 8%, #fff, transparent);
+  animation: k3-twinkle 4s ease-in-out infinite alternate;
+}
+:root[data-sky="night"] .k3-stars,
+:root[data-sky="dusk"] .k3-stars { display: block; }
+:root[data-sky="dusk"] .k3-stars { opacity: 0.35; animation: none; }
+.k3-cloud {
+  --cl: rgb(255 252 244 / 0.95);
+  --cs: rgb(196 204 222 / 0.7);
+  top: 12%;
+  left: 6%;
+  width: 52%;
+  height: 12%;
+  background:
+    radial-gradient(closest-side, var(--cl) 50%, transparent) 8% 80% / 34% 70% no-repeat,
+    radial-gradient(closest-side, var(--cl) 50%, transparent) 36% 10% / 40% 100% no-repeat,
+    radial-gradient(closest-side, var(--cl) 50%, transparent) 66% 40% / 36% 88% no-repeat,
+    radial-gradient(closest-side, var(--cl) 50%, transparent) 92% 90% / 26% 60% no-repeat,
+    radial-gradient(closest-side, var(--cs) 40%, transparent) 50% 100% / 96% 46% no-repeat;
+  animation: k3-drift 120s linear -40s infinite;
+}
+.k3-c2 {
+  top: 36%;
+  left: 40%;
+  width: 36%;
+  height: 8%;
+  opacity: 0.7;
+  animation-duration: 170s;
+  animation-delay: -110s;
+}
+:root[data-sky="dusk"] .k3-cloud { --cl: rgb(255 196 168 / 0.9); --cs: rgb(150 92 130 / 0.7); }
+:root[data-sky="night"] .k3-cloud { --cl: rgb(48 62 100 / 0.75); --cs: rgb(20 28 54 / 0.6); }
+.k3-far {
+  inset: auto 0 20% 0;
+  height: 22%;
+  background:
+    radial-gradient(60% 100% at 20% 100%, var(--far) 99%, transparent 100%),
+    radial-gradient(50% 80% at 70% 100%, var(--far) 99%, transparent 100%),
+    radial-gradient(40% 60% at 100% 100%, var(--far) 99%, transparent 100%);
+  opacity: 0.85;
+}
+.k3-trees {
+  inset: auto 0 13% 0;
+  height: 15%;
+  background:
+    radial-gradient(closest-side, var(--tr) 92%, transparent) 0 100% / 9% 80% repeat-x,
+    radial-gradient(closest-side, var(--tr2) 92%, transparent) 4% 100% / 13% 100% repeat-x,
+    linear-gradient(180deg, transparent 70%, var(--tr2) 70%);
+}
+.k3-near {
+  inset: auto 0 0 0;
+  height: 22%;
+  background:
+    radial-gradient(70% 60% at 30% 12%, rgb(255 236 180 / 0.22), transparent 60%),
+    radial-gradient(80% 100% at 24% 100%, var(--near) 99%, transparent 100%),
+    radial-gradient(70% 90% at 88% 100%, var(--near2) 99%, transparent 100%);
+}
+
+/* sash frame, set just in front of the glass */
+.k3-wframe {
+  --f: color-mix(in oklab, #fcf9f2, #1a2032 calc(var(--k3-night) * 86%));
+  --fs: color-mix(in oklab, #cfc4ae, #0d1222 calc(var(--k3-night) * 86%));
+  --t: calc(var(--m) * 0.042);
+  width: var(--winw);
+  height: calc(var(--wy1) - var(--wy0));
+  transform: translate3d(var(--winl), var(--wy0), calc(var(--m) * 0.032 - var(--rv)));
+  background:
+    /* shadows the rails and mullion throw on the glass */
+    linear-gradient(rgb(0 0 0 / 0.22), transparent) 0 var(--t) / 100% calc(var(--m) * 0.025) no-repeat,
+    linear-gradient(rgb(0 0 0 / 0.2), transparent) 0 calc(var(--m) * 0.597) / 100% calc(var(--m) * 0.022) no-repeat,
+    linear-gradient(90deg, rgb(0 0 0 / 0.18), transparent) calc(50% + var(--m) * 0.02) 0 / calc(var(--m) * 0.014) 100% no-repeat,
+    /* bevels: lit top edges, shaded bottom edges */
+    linear-gradient(180deg, #fff 0 1px, transparent 1px calc(100% - 1px), var(--fs) calc(100% - 1px)) 0 calc(var(--m) * 0.56) / 100% calc(var(--m) * 0.037) no-repeat,
+    linear-gradient(90deg, var(--fs) 0 1px, transparent 1px calc(100% - 1px), var(--fs) calc(100% - 1px)) 50% 0 / calc(var(--m) * 0.024) 100% no-repeat,
+    /* members: rails, stiles, meeting rail, mullion */
+    linear-gradient(var(--f), var(--f)) 0 0 / 100% var(--t) no-repeat,
+    linear-gradient(var(--f), var(--f)) 0 100% / 100% calc(var(--t) * 1.35) no-repeat,
+    linear-gradient(90deg, var(--fs), var(--f) 30%) 0 0 / var(--t) 100% no-repeat,
+    linear-gradient(270deg, var(--fs), var(--f) 30%) 100% 0 / var(--t) 100% no-repeat,
+    linear-gradient(var(--f), var(--f)) 0 calc(var(--m) * 0.56) / 100% calc(var(--m) * 0.037) no-repeat,
+    linear-gradient(90deg, var(--f), var(--fs)) 50% 0 / calc(var(--m) * 0.024) 100% no-repeat;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.14);
+}
+
+/* the reveal: plaster jambs between the wall face and the glass */
+.k3-rev {
+  background:
+    linear-gradient(var(--rd, 90deg), rgb(70 50 30 / 0.3), transparent 70%),
+    linear-gradient(180deg, #ece1ca, #d9c9a8);
+}
+.k3-rev-top {
+  --rd: 0deg;
+  width: var(--winw);
+  height: var(--rv);
+  transform: translate3d(var(--winl), var(--wy0), 0) rotateX(-90deg);
+}
+.k3-rev-back {
+  --rd: 90deg;
+  width: var(--rv);
+  height: calc(var(--wy1) - var(--wy0));
+  transform: translate3d(calc(var(--winl) + var(--winw)), var(--wy0), calc(-1 * var(--rv))) rotateY(-90deg);
+  background:
+    linear-gradient(90deg, rgb(70 50 30 / 0.22), transparent 60%),
+    linear-gradient(180deg, transparent 30%, rgb(var(--k3-pc) / calc(var(--patch) * 0.6)) 60%, transparent 95%),
+    linear-gradient(180deg, #efe4cd, #ddcdac);
+}
+.k3-rev-front {
+  --rd: 270deg;
+  width: var(--rv);
+  height: calc(var(--wy1) - var(--wy0));
+  transform: translate3d(var(--winl), var(--wy0), 0) rotateY(90deg);
+}
+
+/* deep painted sill: the stool runs from the glass out into the room */
+.k3-sill {
+  width: calc(var(--winw) + var(--m) * 0.12);
+  height: calc(var(--rv) + var(--m) * 0.15);
+  transform: translate3d(calc(var(--winl) - var(--m) * 0.06), var(--wy1), calc(-1 * var(--rv))) rotateX(90deg);
+  background:
+    /* sun (or moon) on the sill */
+    radial-gradient(40% 60% at 50% 30%, rgb(var(--k3-pc) / calc(var(--patch) * 0.9)), transparent 80%),
+    linear-gradient(0deg, #fff 0 1px, transparent 1px),
+    linear-gradient(180deg, #d6ccb8, #f6f1e6 calc(var(--rv) - 1px), #c8bda6 var(--rv), #fbf8f1 calc(var(--rv) + 2px), #fffdf8);
+}
+.k3-sill::after {
+  /* the pot's contact shadow */
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--m) * 0.06 + var(--winw) * 0.7);
+  top: calc(var(--rv) + var(--m) * 0.075);
+  width: calc(var(--m) * 0.15);
+  height: calc(var(--m) * 0.08);
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(40 24 8 / 0.5), rgb(40 24 8 / 0.2) 60%, transparent);
+}
+.k3-sill-front {
+  width: calc(var(--winw) + var(--m) * 0.12);
+  height: calc(var(--m) * 0.036);
+  transform: translate3d(calc(var(--winl) - var(--m) * 0.06), var(--wy1), calc(var(--m) * 0.15));
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(180deg, #fff 0 1px, #fbf7ee 2px, #e6dccb 55%, #c9bea8);
+}
+.k3-sill-end {
+  width: calc(var(--m) * 0.15);
+  height: calc(var(--m) * 0.036);
+  transform: translate3d(calc(var(--winl) - var(--m) * 0.06), var(--wy1), 0) rotateY(-90deg);
+  background: linear-gradient(90deg, #d8cdb6, #efe7d8);
+}
+.k3-sill-under {
+  width: calc(var(--winw) + var(--m) * 0.12);
+  height: calc(var(--m) * 0.15);
+  transform: translate3d(calc(var(--winl) - var(--m) * 0.06), calc(var(--wy1) + var(--m) * 0.036), calc(var(--m) * 0.15)) rotateX(-90deg);
+  background: linear-gradient(180deg, #b6aa92, #8f846f);
+}
+.k3-plant {
+  --w: 0.19;
+  transform: translate3d(calc(var(--winl) + var(--winw) * 0.7), var(--wy1), calc(var(--m) * 0.075)) rotateY(-90deg) translate(-50%, -100%) !important;
+}
+
+/* café curtains on a brass rod */
+.k3-rod {
+  width: calc(var(--winw) + var(--m) * 0.26);
+  height: calc(var(--m) * 0.018);
+  transform: translate3d(calc(var(--winl) - var(--m) * 0.13), calc(var(--wy0) - var(--m) * 0.085), calc(var(--m) * 0.06));
+  border-radius: 99px;
+  background: linear-gradient(180deg, #fff1c0, #d4a84a 40%, #8a6420);
+  box-shadow: 0 calc(var(--m) * 0.01) calc(var(--m) * 0.012) rgb(40 24 8 / 0.35);
+  filter: brightness(calc(1 - var(--k3-night) * 0.75));
+}
+.k3-rod::before,
+.k3-rod::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: calc(var(--m) * 0.034);
+  aspect-ratio: 1;
+  translate: 0 -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #d9ad4f 40%, #7a561a 85%);
+}
+.k3-rod::before { left: calc(var(--m) * -0.02); }
+.k3-rod::after { right: calc(var(--m) * -0.02); }
+.k3-curtain {
+  --fab: color-mix(in oklab, #f8f1e2, #141a2e calc(var(--k3-night) * 84%));
+  --chk: color-mix(in oklab, rgb(201 79 58 / 0.5), rgb(40 20 30 / 0.5) calc(var(--k3-night) * 84%));
+  --g: calc(var(--m) * 0.013);
+  width: calc(var(--m) * 0.22);
+  height: calc(var(--wy1) - var(--wy0) + var(--m) * 0.07);
+  background:
+    /* tie-back band */
+    linear-gradient(180deg, transparent 63%, color-mix(in oklab, #a63b29, #1a0e14 calc(var(--k3-night) * 84%)) 63% 67%, transparent 67%),
+    /* rings and heading */
+    radial-gradient(circle at 50% calc(var(--m) * 0.008), #8a6420 0 calc(var(--m) * 0.006), transparent calc(var(--m) * 0.0065)) 0 0 / calc(var(--m) * 0.044) 100% repeat-x,
+    linear-gradient(180deg, rgb(0 0 0 / 0.18), transparent calc(var(--m) * 0.04)),
+    /* folds */
+    repeating-linear-gradient(90deg, rgb(40 20 10 / 0.22) 0, rgb(255 255 255 / 0.12) calc(var(--m) * 0.022), rgb(40 20 10 / 0.22) calc(var(--m) * 0.044)),
+    /* gingham */
+    repeating-linear-gradient(90deg, var(--chk) 0 var(--g), transparent var(--g) calc(var(--g) * 2)),
+    repeating-linear-gradient(0deg, var(--chk) 0 var(--g), transparent var(--g) calc(var(--g) * 2)),
+    var(--fab);
+}
+.k3-curtain-l {
+  transform: translate3d(calc(var(--winl) - var(--m) * 0.11), calc(var(--wy0) - var(--m) * 0.085), calc(var(--m) * 0.045));
+  clip-path: polygon(0 0, 100% 0, 100% 34%, 64% 63%, 56% 67%, 74% 100%, 0 100%);
+}
+.k3-curtain-r {
+  transform: translate3d(calc(var(--winl) + var(--winw) - var(--m) * 0.11), calc(var(--wy0) - var(--m) * 0.085), calc(var(--m) * 0.045));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 26% 100%, 44% 67%, 36% 63%, 0 34%);
+}
+
+/* sunbeams (moonbeams at night): vertical light sheets from the window down to the counter.
+   The mask keeps a soft-edged band along the beam (slope 0.75) with the meeting-rail shadow. */
+.k3-beam {
+  width: calc(var(--m) * 1.1);
+  height: calc(var(--m) * 2);
+  transform: translate3d(calc(var(--winl) + var(--winw) * var(--f)), 0, 0) rotateY(-90deg);
+  background: linear-gradient(90deg,
+    rgb(var(--k3-pc) / calc(var(--patch) * 0.34)),
+    rgb(var(--k3-pc) / calc(var(--patch) * 0.14)) 50%, transparent 96%);
+  -webkit-mask-image: linear-gradient(36.87deg, transparent 13%, #000 22% 34%, rgb(0 0 0 / 0.35) 37.6%, #000 41% 51%, transparent 60%);
+  mask-image: linear-gradient(36.87deg, transparent 13%, #000 22% 34%, rgb(0 0 0 / 0.35) 37.6%, #000 41% 51%, transparent 60%);
+}
+.k3-beam b {
+  position: absolute;
+  width: calc(var(--m) * 0.008);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgb(255 250 236 / calc(var(--patch) * 2));
+  box-shadow: 0 0 3px rgb(255 250 236 / calc(var(--patch) * 1.2));
+  animation: k3-mote 11s ease-in-out infinite alternate;
+}
+.k3-beam b:nth-child(1) { left: calc(var(--m) * 0.3); top: calc(var(--m) * 1.1); }
+.k3-beam b:nth-child(2) { left: calc(var(--m) * 0.6); top: calc(var(--m) * 1.04); width: calc(var(--m) * 0.005); animation-duration: 14s; animation-delay: -5s; }
+.k3-beam b:nth-child(3) { left: calc(var(--m) * 0.44); top: calc(var(--m) * 1.42); width: calc(var(--m) * 0.006); animation-duration: 9s; animation-delay: -3s; }
+.k3-beam + .k3-beam b:nth-child(1) { left: calc(var(--m) * 0.2); top: calc(var(--m) * 0.98); animation-delay: -7s; }
+.k3-beam + .k3-beam b:nth-child(2) { left: calc(var(--m) * 0.72); top: calc(var(--m) * 1.3); }
+
+/* outside: sage clapboard, the window glowing with the kitchen inside */
+.k3-lw-out {
+  backface-visibility: hidden;
+  transform: translate3d(var(--sw), 0, calc(-1 * var(--wt))) rotateY(180deg);
+  background:
+    repeating-linear-gradient(180deg, rgb(255 255 255 / 0.18) 0 2px, transparent 2px calc(var(--m) * 0.055), rgb(0 0 0 / 0.16) calc(var(--m) * 0.055) calc(var(--m) * 0.06)),
+    linear-gradient(0deg, #6d6257 0 calc(var(--m) * 0.12), transparent 0),
+    linear-gradient(180deg, #9fb59c, #8aa287);
+}
+.k3-win-out {
+  position: absolute;
+  z-index: 1;
+  right: var(--winl);
+  top: var(--wy0);
+  width: var(--winw);
+  height: calc(var(--wy1) - var(--wy0));
+  box-sizing: border-box;
+  border: calc(var(--m) * 0.035) solid color-mix(in srgb, #f4efe4, #1a2032 calc(var(--k3-night) * 80%));
+  background:
+    linear-gradient(90deg, transparent calc(50% - var(--m) * 0.012), #f4efe4 0 calc(50% + var(--m) * 0.012), transparent 0),
+    linear-gradient(180deg, transparent calc(48% - var(--m) * 0.015), #f4efe4 0 calc(48% + var(--m) * 0.015), transparent 0),
+    linear-gradient(125deg, rgb(255 255 255 / 0.3), transparent 35%),
+    radial-gradient(80% 70% at 50% 40%, rgb(255 214 150 / calc(0.25 + var(--on) * 0.75)), rgb(255 170 90 / calc(0.1 + var(--on) * 0.5)) 70%, #1a2240);
+  box-shadow: 0 calc(var(--m) * 0.04) 0 calc(var(--m) * -0.01) #e9e2d3;
+}
+
+.k3-lw-edge {
+  width: var(--wt);
+  height: calc(var(--m) * 2.8);
+  transform: translate3d(0, 0, calc(-1 * var(--wt))) rotateY(-90deg);
+}
+.k3-lw-top {
+  width: calc(var(--sw) + var(--wt));
+  height: var(--wt);
+  transform: translate3d(0, calc(-1 * var(--wt)), calc(-1 * var(--wt))) rotateX(90deg);
+}
+
+/* ---------- Right side wall: hanging pans -------------------------------- */
+
+/* group axes: local x runs from the back wall toward the viewer, local z into the room (world −x) */
+.k3-rw { transform: translate3d(var(--hw), var(--ceil), var(--wz)) rotateY(-90deg); }
+.k3-rw-in {
+  background:
+    linear-gradient(180deg, rgb(60 40 20 / 0.42), rgb(60 40 20 / 0.12) calc(var(--m) * 0.12), transparent calc(var(--m) * 0.3)),
+    linear-gradient(0deg, #1f2e28 0 calc(var(--m) * 0.05), #2a3d34 calc(var(--m) * 0.05) calc(var(--m) * 0.8), transparent calc(var(--m) * 0.8)),
+    linear-gradient(90deg, rgb(60 40 20 / 0.45), rgb(60 40 20 / 0.12) calc(var(--m) * 0.12), transparent calc(var(--m) * 0.32)),
+    linear-gradient(180deg, #e2d3b5, #d2c09e);
+}
+.k3-rw-in::after {
+  background:
+    radial-gradient(calc(var(--m) * 0.8) calc(var(--m) * 0.7) at calc(-1 * var(--wz)) calc(var(--m) * 1.75),
+      color-mix(in srgb, var(--k3-glow-r) calc(var(--spill) * 32%), transparent), transparent),
+    linear-gradient(90deg, var(--gold), transparent);
+}
+.k3-pans {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--m) * 0.5);
+  top: calc(var(--m) * 1.06);
+  width: calc(var(--m) * 0.44);
+  height: auto;
+}
+.k3-rw-edge {
+  width: var(--wt);
+  height: calc(var(--m) * 2.8);
+  transform: translate3d(var(--sw), 0, 0) rotateY(90deg);
+}
+.k3-rw-top {
+  width: calc(var(--sw) + var(--wt));
+  height: var(--wt);
+  transform: translate3d(calc(-1 * var(--wt)), calc(-1 * var(--wt)), 0) rotateX(-90deg);
+}
+
+/* ---------- Corner open shelves (back wall, right of the glass cabinet) --- */
+
+.k3-wsh {
+  --sl: calc(var(--m) * 0.38);
+  --sd: calc(var(--m) * 0.2);
+  --st: calc(var(--m) * 0.03);
+  transform: translate3d(calc(var(--m) * 1.3), calc(var(--sy) * var(--m)), var(--wz));
+}
+.k3-wsh-top {
+  width: var(--sl);
+  height: var(--sd);
+  transform: rotateX(90deg);
+  background:
+    linear-gradient(180deg, rgb(40 20 6 / 0.45), transparent 35%),
+    repeating-linear-gradient(90deg, rgb(110 64 26 / 0.15) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, var(--oak), var(--oak-hi));
+}
+.k3-wsh-front {
+  width: var(--sl);
+  height: var(--st);
+  transform: translateZ(var(--sd));
+  background: linear-gradient(180deg, #f2cb92 0 1px, var(--oak-hi) 2px, var(--oak) 50%, var(--oak-lo));
+}
+.k3-wsh-bot {
+  width: var(--sl);
+  height: var(--sd);
+  transform: translate3d(0, var(--st), var(--sd)) rotateX(-90deg);
+  background: linear-gradient(180deg, #7a4c22, #5e3a18);
+}
+.k3-wsh-end {
+  width: var(--sd);
+  height: var(--st);
+  transform: rotateY(-90deg);
+  background:
+    repeating-radial-gradient(circle at 20% 160%, rgb(90 52 20 / 0.3) 0 1px, transparent 1px 4px),
+    linear-gradient(90deg, #a87138, #c58f56);
+}
+.k3-brk {
+  width: calc(var(--m) * 0.15);
+  height: calc(var(--m) * 0.13);
+  transform: translate3d(var(--bx), var(--st), 0) rotateY(-90deg);
+  clip-path: polygon(0 0, 100% 0, 100% 9%, 88% 14%, 52% 30%, 26% 52%, 12% 80%, 10% 100%, 0 100%);
+  background: linear-gradient(135deg, #4a443d, #1d1a17 60%);
+  filter: brightness(calc(1 - var(--k3-night) * 0.6));
+}
+.k3-wi {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--w) * var(--m));
+  transform-origin: 0 0;
+  transform: translate3d(calc(var(--lx) * var(--m)), 0, calc(var(--m) * 0.1)) translate(-50%, -100%);
+}
+
+/* ---------- Upper cabinets (3D boxes) ------------------------------------ */
+
+.k3-cab-l { --cw: calc(var(--m) * 0.95); transform: translate3d(calc(var(--m) * -1.6), calc(var(--m) * -1.9), var(--wz)); }
+.k3-cab-r { --cw: calc(var(--m) * 0.6); transform: translate3d(calc(var(--m) * 0.65), calc(var(--m) * -1.9), var(--wz)); }
+.k3-cab-front {
+  display: flex;
+  gap: calc(var(--m) * 0.012);
+  width: var(--cw);
+  height: calc(var(--m) * 0.75);
+  padding: calc(var(--m) * 0.06) calc(var(--m) * 0.018) calc(var(--m) * 0.03);
+  transform: translateZ(var(--cabd));
+  background:
+    /* crown */
+    linear-gradient(180deg, #7a4c22 0 calc(var(--m) * 0.006), var(--oak-hi) calc(var(--m) * 0.014), #a26c38 calc(var(--m) * 0.03), #6e451f calc(var(--m) * 0.036), transparent calc(var(--m) * 0.036)),
+    /* light rail: the LED fixture's front lip */
+    linear-gradient(0deg, #5a3a1a 0 1px, #b98049 1px calc(var(--m) * 0.006), #8a5a2c calc(var(--m) * 0.018), rgb(50 28 10 / 0.5) calc(var(--m) * 0.02), transparent calc(var(--m) * 0.028)),
+    linear-gradient(90deg, var(--oak-lo), var(--oak) 25% 75%, var(--oak-lo));
+}
+.k3-door {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(91deg, rgb(110 64 26 / 0.12) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(88deg, rgb(255 228 186 / 0.1) 0 2px, transparent 2px 13px),
+    linear-gradient(180deg, var(--oak-hi), var(--oak) 60%, #b98049);
+  box-shadow:
+    inset 0 0 0 1px rgb(90 52 20 / 0.45),
+    inset 0 2px 0 rgb(255 236 200 / 0.45),
+    inset 2px 0 0 rgb(255 236 200 / 0.2),
+    inset 0 -2px 0 rgb(80 46 16 / 0.35),
+    0 3px 5px rgb(40 24 8 / 0.32);
+}
+.k3-door::before {
+  content: "";
+  position: absolute;
+  inset: 12% 15%;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(90deg, rgb(110 64 26 / 0.12) 0 1px, transparent 1px 8px),
+    linear-gradient(180deg, #c28a51, #b27a43);
+  box-shadow: inset 3px 3px 5px rgb(70 40 12 / 0.5), inset -1px -1px 0 rgb(255 236 200 / 0.45);
+}
+.k3-door::after {
+  content: "";
+  position: absolute;
+  bottom: 8%;
+  width: calc(var(--m) * 0.022);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #d9ad4f 40%, #8a6420 85%);
+  box-shadow: 0 2px 3px rgb(40 24 8 / 0.5);
+}
+.k3-door:first-child::after { right: 7%; }
+.k3-door:last-child::after { left: 7%; }
+/* glass doors: plates and glasses on lit shelves */
+.k3-glass::before {
+  inset: 10% 13%;
+  background:
+    linear-gradient(125deg, transparent 20%, rgb(255 255 255 / 0.28) 26%, transparent 34%, transparent 58%, rgb(255 255 255 / 0.14) 62%, transparent 68%),
+    linear-gradient(180deg, transparent 47%, #8a5a2c 47% 50%, transparent 50%),
+    radial-gradient(circle at 26% 34%, #f4efe4 0 15%, #d6cdb9 16% 17%, transparent 18%),
+    radial-gradient(circle at 44% 34%, #f4efe4 0 15%, #d6cdb9 16% 17%, transparent 18%),
+    radial-gradient(circle at 62% 34%, #2f5d50 0 13%, #f4efe4 14% 15%, transparent 16%),
+    linear-gradient(90deg, transparent 70%, rgb(220 235 240 / 0.55) 70% 80%, transparent 80% 83%, rgb(220 235 240 / 0.55) 83% 93%, transparent 93%) 0 22% / 100% 25% no-repeat,
+    linear-gradient(90deg, transparent 12%, #c94f3a 12% 32%, transparent 32% 38%, #e7c14f 38% 58%, transparent 58% 64%, #f4efe4 64% 84%, transparent 84%) 0 86% / 100% 22% no-repeat,
+    radial-gradient(90% 60% at 50% 10%, rgb(255 226 170 / calc(var(--on) * 0.45)), transparent),
+    linear-gradient(180deg, #3a2a1c, #4d3826);
+}
+.k3-cab-bot {
+  width: var(--cw);
+  height: var(--cabd);
+  transform: translate3d(0, calc(var(--m) * 0.75), 0) rotateX(90deg);
+  background:
+    linear-gradient(0deg, transparent calc(var(--m) * 0.026), #3d3a35 calc(var(--m) * 0.026) calc(var(--m) * 0.052), transparent calc(var(--m) * 0.052)),
+    linear-gradient(180deg, rgb(0 0 0 / 0.45), transparent 40%),
+    linear-gradient(90deg, #6a4420, #7d5128 50%, #6a4420);
+}
+/* the LED strip itself (a diffuser lens), then its glow and a hint of the picture */
+.k3-cab-bot::after {
+  background:
+    linear-gradient(0deg, transparent calc(var(--m) * 0.03), rgb(255 250 232 / var(--on)) calc(var(--m) * 0.032) calc(var(--m) * 0.046), transparent calc(var(--m) * 0.048)) calc(var(--m) * 0.03) 0 / calc(100% - var(--m) * 0.06) 100% no-repeat,
+    radial-gradient(70% 90% at 50% 100%, rgb(255 214 150 / calc(var(--on) * 0.4)), transparent),
+    radial-gradient(80% 140% at var(--inner, 100%) 100%, color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 40%), transparent), transparent);
+}
+.k3-cab-r .k3-cab-bot { --inner: 0%; }
+.k3-cab-side {
+  width: var(--cabd);
+  height: calc(var(--m) * 0.75);
+  background:
+    linear-gradient(180deg, #6e451f 0 calc(var(--m) * 0.036), transparent 0),
+    linear-gradient(0deg, rgb(255 214 150 / calc(var(--on) * 0.25)), transparent calc(var(--m) * 0.08)),
+    repeating-linear-gradient(90deg, rgb(70 40 14 / 0.14) 0 1px, transparent 1px 7px),
+    linear-gradient(90deg, #8a5a2c, #9d6a37);
+}
+.k3-cab-l .k3-cab-side,
+.k3-cab-side-o { transform: translate3d(var(--cw), 0, var(--cabd)) rotateY(90deg); }
+.k3-cab-r .k3-cab-side:not(.k3-cab-side-o) { transform: rotateY(-90deg); }
+
+/* ---------- Open shelf with jars ---------------------------------------- */
+
+.k3-shelf { transform: translate3d(calc(var(--m) * -1.1), calc(var(--m) * -0.82), var(--wz)); }
+.k3-shelf-top {
+  width: calc(var(--m) * 0.7);
+  height: calc(var(--m) * 0.13);
+  transform: translate3d(calc(var(--m) * -0.35), 0, 0) rotateX(90deg);
+  background:
+    linear-gradient(180deg, rgb(40 20 6 / 0.45), transparent 40%),
+    repeating-linear-gradient(90deg, rgb(110 64 26 / 0.15) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, var(--oak), var(--oak-hi));
+}
+.k3-shelf-front {
+  width: calc(var(--m) * 0.7);
+  height: calc(var(--m) * 0.03);
+  transform: translate3d(calc(var(--m) * -0.35), 0, calc(var(--m) * 0.13));
+  background: linear-gradient(180deg, #f2cb92 0 1px, var(--oak-hi) 2px, var(--oak) 50%, var(--oak-lo));
+}
+.k3-jars {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--m) * 0.62);
+  transform-origin: 0 0;
+  transform: translate3d(0, 0, calc(var(--m) * 0.065)) translate(-50%, -100%);
+}
+
+/* ---------- Pendant lamp -------------------------------------------------- */
+
+/* hangs between the left cabinet and the microwave; the shade stays above the
+   microwave (shade bottom ≤ min(−0.9M, −H − 0.14M)) */
+.k3-pend {
+  --drop: clamp(calc(var(--m) * 0.15), calc(var(--m) * 1.69 - var(--h)), calc(var(--m) * 0.93));
+  transform: translate3d(calc(var(--m) * -0.66), var(--ceil), calc(var(--m) * 0.15));
+}
+.k3-canopy {
+  width: calc(var(--m) * 0.13);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate3d(calc(var(--m) * -0.065), calc(var(--m) * 0.03), calc(var(--m) * 0.065)) rotateX(-90deg);
+  background: radial-gradient(circle, #2a201c 0 6%, #8a2a1a 7% 20%, #c4472f 45%, #8f2d1c 92%, #5a160c);
+  filter: brightness(calc(1 - var(--k3-night) * 0.78));
+}
+.k3-canband {
+  width: calc(var(--m) * 0.13);
+  height: calc(var(--m) * 0.03);
+  transform: rotateY(var(--r, 0deg)) translate3d(-50%, 0, 0);
+  border-radius: 0 0 3px 3px;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.3), transparent 30%, rgb(255 255 255 / 0.2) 85%, transparent),
+    linear-gradient(90deg, #4a1009, #c4472f 30%, #ef7a5c 40%, #b23a27 70%, #4a1009);
+  filter: brightness(calc(1 - var(--k3-night) * 0.78));
+}
+.k3-cord {
+  width: max(2px, calc(var(--m) * 0.0035));
+  height: calc(var(--drop) - var(--m) * 0.05);
+  transform: translate3d(-50%, calc(var(--m) * 0.03), 0);
+  background:
+    repeating-linear-gradient(160deg, rgb(255 255 255 / 0.12) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, #15120f, #4a443d 50%, #15120f);
+}
+
+.k3-shade { transform: translate3d(0, var(--drop), 0); }
+.k3-collar {
+  width: calc(var(--m) * 0.055);
+  height: calc(var(--m) * 0.05);
+  transform: rotateY(var(--r, 0deg)) translate3d(-50%, calc(var(--m) * -0.038), 0);
+  border-radius: calc(var(--m) * 0.01) calc(var(--m) * 0.01) 0 0;
+  background:
+    repeating-linear-gradient(180deg, rgb(0 0 0 / 0.18) 0 1px, transparent 1px 4px) 0 0 / 100% 45% no-repeat,
+    linear-gradient(90deg, #6e4d18, #f4d483 32%, #c99a3e 55%, #6e4d18);
+  filter: brightness(calc(1 - var(--k3-night) * 0.75));
+}
+
+/* the dome: two rings of 8 facets around the axis, Gouraud-shaded so it reads round.
+   Key light from the front-left; at night a rim of video spill from the right. */
+.k3-fa {
+  --hi: color-mix(in oklab, #ea6044, #10162e calc(var(--k3-night) * 86%));
+  --lo: color-mix(in oklab, #5c150b, #04060e calc(var(--k3-night) * 86%));
+  --cl: calc(0.5 + 0.5 * cos(var(--a) + 17.5deg));
+  --cr: calc(0.5 + 0.5 * cos(var(--a) + 62.5deg));
+  --rl: max(0, cos(var(--a) - 122.5deg));
+  --rr: max(0, cos(var(--a) - 77.5deg));
+  --sp: clamp(0, (cos(var(--a) + 25deg) - 0.72) * 3.4, 1);
+  transform: rotateY(var(--a)) translate3d(-50%, var(--y1), var(--r1)) rotateX(var(--al));
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--k3-glow) calc(var(--spill) * var(--rl) * 75%), transparent),
+      color-mix(in srgb, var(--k3-glow) calc(var(--spill) * var(--rr) * 75%), transparent)),
+    linear-gradient(90deg, transparent 18%, rgb(255 246 232 / calc(var(--sp) * 0.6 * var(--on))) 50%, transparent 82%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 45%, rgb(0 0 0 / 0.14)),
+    linear-gradient(90deg,
+      color-mix(in oklab, var(--hi) calc(var(--cl) * 100%), var(--lo)),
+      color-mix(in oklab, var(--hi) calc(var(--cr) * 100%), var(--lo)));
+}
+.k3-fa-a {
+  --y1: 0px;
+  --r1: calc(var(--m) * 0.035);
+  --al: 42.5deg;
+  width: calc(var(--m) * 0.0746 + 2px);
+  height: calc(var(--m) * 0.0814 + 1px);
+  clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+}
+.k3-fa-b {
+  --y1: calc(var(--m) * 0.06);
+  --r1: calc(var(--m) * 0.09);
+  --al: 24.4deg;
+  width: calc(var(--m) * 0.116 + 2px);
+  height: calc(var(--m) * 0.1208);
+  clip-path: polygon(17.5% 0, 82.5% 0, 100% 100%, 0 100%);
+}
+.k3-fa-b::after {
+  /* cream enamel rim */
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--m) * 0.007);
+  background: color-mix(in oklab, #f4e8d0, #121830 calc(var(--k3-night) * 86%));
+}
+/* the mouth seen from below: white enamel inside, the bulb's hot spot */
+.k3-mouth {
+  width: calc(var(--m) * 0.303);
+  aspect-ratio: 1;
+  transform: translate3d(-50%, calc(var(--m) * 0.17), calc(var(--m) * 0.1515)) rotateX(-90deg);
+  clip-path: polygon(30.9% 3.8%, 69.1% 3.8%, 96.2% 30.9%, 96.2% 69.1%, 69.1% 96.2%, 30.9% 96.2%, 3.8% 69.1%, 3.8% 30.9%);
+  background: radial-gradient(circle,
+    color-mix(in oklab, #fffdf2, #2b2a2e calc(var(--k3-night) * 100%)) 0 16%,
+    color-mix(in oklab, #ffe2a8, #1b1a20 calc(var(--k3-night) * 100%)) 34%,
+    color-mix(in oklab, #f4e6ca, #121218 calc(var(--k3-night) * 100%)) 78%,
+    color-mix(in oklab, #f4e8d0, #121830 calc(var(--k3-night) * 86%)) 84%);
+}
+.k3-bulb {
+  width: calc(var(--m) * 0.075);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate3d(-50%, calc(var(--m) * 0.135), 0);
+  background: radial-gradient(circle at 42% 38%,
+    color-mix(in srgb, #fffef6, #5a5760 calc(var(--k3-night) * 100%)) 0 22%,
+    color-mix(in srgb, #ffdba4, #2a2830 calc(var(--k3-night) * 100%)) 62%,
+    color-mix(in srgb, #ffb259, #141318 calc(var(--k3-night) * 100%)));
+  box-shadow:
+    0 0 calc(var(--m) * 0.02) calc(var(--m) * 0.01) rgb(255 222 150 / calc(var(--on) * 0.9)),
+    inset calc(var(--m) * -0.006) calc(var(--m) * -0.008) calc(var(--m) * 0.012) rgb(0 0 0 / calc(var(--k3-night) * 0.5));
+}
+.k3-bulb::after {
+  /* glass glint, visible when it's off */
+  content: "";
+  position: absolute;
+  left: 24%;
+  top: 18%;
+  width: 26%;
+  height: 20%;
+  border-radius: 50%;
+  background: rgb(255 255 255 / calc(0.15 + var(--k3-night) * 0.35));
+}
+.k3-bloom {
+  width: calc(var(--m) * 0.62);
+  aspect-ratio: 1;
+  transform: translate3d(-50%, calc(var(--m) * -0.1375), calc(var(--m) * -0.002));
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    rgb(255 236 190 / calc(var(--on) * 0.6)),
+    rgb(255 206 140 / calc(var(--on) * 0.2)) 30%,
+    rgb(255 190 120 / calc(var(--on) * 0.06)) 60%, transparent);
+}
+/* volumetric cone: three crossed sheets, fading before the microwave */
+.k3-cone {
+  width: calc(var(--m) * 0.56);
+  height: calc(var(--m) * 1.83 - var(--drop));
+  transform: rotateY(var(--r, 0deg)) translate3d(-50%, calc(var(--m) * 0.17), 0);
+  clip-path: polygon(24.1% 0, 75.9% 0, 100% 100%, 0 100%);
+  background: linear-gradient(180deg,
+    rgb(255 228 172 / calc(var(--on) * 0.2)),
+    rgb(255 214 150 / calc(var(--on) * 0.07)) 50%, transparent 82%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 10%, #000 38% 62%, transparent 90%);
+  mask-image: linear-gradient(90deg, transparent 10%, #000 38% 62%, transparent 90%);
+}
+
+/* ---------- Counter ------------------------------------------------------- */
+
+.k3-ctop {
+  width: var(--rw);
+  height: var(--cd);
+  transform: translate3d(calc(-1 * var(--hw)), 0, var(--wz)) rotateX(90deg);
+  background:
+    /* AO: back wall, side walls */
+    linear-gradient(180deg, rgb(30 20 10 / 0.5), rgb(30 20 10 / 0.14) calc(var(--m) * 0.04), transparent calc(var(--m) * 0.1)),
+    linear-gradient(90deg, rgb(30 20 10 / 0.36), transparent calc(var(--m) * 0.14) calc(100% - var(--m) * 0.14), rgb(30 20 10 / 0.36)),
+    /* the upper cabinets' soft shadow on the back of the counter */
+    radial-gradient(closest-side, rgb(30 20 10 / 0.16), transparent) calc(var(--m) * 0.1) 0 / calc(var(--m) * 0.95) calc(var(--m) * 0.4) no-repeat,
+    /* front edge sheen */
+    linear-gradient(0deg, rgb(255 255 255 / 0.8), transparent calc(var(--m) * 0.03)),
+    /* marble veins */
+    linear-gradient(62deg, transparent 18%, rgb(130 130 140 / 0.3) 18.4%, transparent 19.2%),
+    linear-gradient(118deg, transparent 33%, rgb(150 150 160 / 0.22) 33.3%, transparent 34%),
+    linear-gradient(70deg, transparent 52%, rgb(140 140 150 / 0.26) 52.3%, transparent 53%),
+    linear-gradient(108deg, transparent 71%, rgb(130 130 140 / 0.24) 71.2%, transparent 72%),
+    linear-gradient(54deg, transparent 86%, rgb(150 145 140 / 0.22) 86.3%, transparent 87%),
+    radial-gradient(18% 60% at 30% 40%, rgb(170 170 180 / 0.2), transparent),
+    radial-gradient(14% 50% at 72% 60%, rgb(190 180 170 / 0.22), transparent),
+    linear-gradient(180deg, #e6e1d8, #f6f3ed 70%, #fbfaf6);
+}
+.k3-ctop::after {
+  background:
+    /* the picture's pool in front of the microwave */
+    radial-gradient(calc(var(--m) * 1.0) calc(var(--m) * 0.44) at 50% calc(var(--m) * 0.12 - var(--wz)),
+      color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 95%), transparent),
+      color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 35%), transparent) 55%, transparent),
+    radial-gradient(calc(var(--m) * 0.42) calc(var(--m) * 0.36) at calc(50% - var(--m) * 0.5) calc(var(--m) * 0.06 - var(--wz)),
+      color-mix(in srgb, var(--k3-glow-l) calc(var(--spill) * 80%), transparent), transparent),
+    radial-gradient(calc(var(--m) * 0.42) calc(var(--m) * 0.36) at calc(50% + var(--m) * 0.5) calc(var(--m) * 0.06 - var(--wz)),
+      color-mix(in srgb, var(--k3-glow-r) calc(var(--spill) * 80%), transparent), transparent),
+    /* the display's faint cyan */
+    radial-gradient(calc(var(--m) * 0.2) calc(var(--m) * 0.16) at calc(50% + var(--m) * 0.4) calc(var(--m) * 0.05 - var(--wz)),
+      rgb(141 255 224 / calc(var(--idle) * 0.4)), transparent),
+    /* under-cabinet LED pools along the back */
+    radial-gradient(calc(var(--m) * 0.6) calc(var(--m) * 0.45) at calc(var(--hw) - var(--m) * 1.125) 0, var(--led), transparent),
+    radial-gradient(calc(var(--m) * 0.42) calc(var(--m) * 0.45) at calc(var(--hw) + var(--m) * 0.95) 0, var(--led), transparent),
+    linear-gradient(90deg, var(--gold), transparent 55%);
+}
+.k3-cs {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--hw) + var(--x) * var(--m));
+  top: calc(var(--z) * var(--m) + var(--wall, 0) * var(--wz) - var(--wz));
+  width: calc(var(--w) * var(--m) * 1.15);
+  height: calc(var(--w) * var(--m) * 0.42);
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(30 18 8 / 0.55), rgb(30 18 8 / 0.2) 55%, transparent);
+}
+/* window light on the counter: sun by day, moon at night (lights off) */
+.k3-sunpatch {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--m) * 0.55);
+  top: calc(var(--m) * 0.5 - var(--winl) - var(--winw) - var(--wz));
+  width: calc(var(--m) * 0.7);
+  height: var(--winw);
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(180deg, transparent 48%, #000 48% 52%, transparent 52%),
+    linear-gradient(90deg, rgb(var(--k3-pc) / var(--patch)), rgb(var(--k3-pc) / calc(var(--patch) * 0.4)) 55%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 12% 88%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 12% 88%, transparent);
+}
+.k3-pool {
+  position: absolute;
+  z-index: 3;
+  left: calc(var(--hw) - var(--m) * 0.66);
+  top: calc(var(--m) * 0.15 - var(--wz));
+  width: calc(var(--m) * 0.8);
+  height: calc(var(--m) * 0.56);
+  translate: -50% -50%;
+  mix-blend-mode: screen;
+  background: radial-gradient(closest-side, rgb(255 222 160 / calc(var(--on) * 0.7)), rgb(255 200 130 / calc(var(--on) * 0.24)) 55%, transparent);
+}
+
+/* backsplash cove: a little 45° fillet where the counter meets the tiles */
+.k3-cove {
+  width: var(--rw);
+  height: calc(var(--m) * 0.034);
+  transform: translate3d(calc(-1 * var(--hw)), calc(var(--m) * -0.024), var(--wz)) rotateX(45deg);
+  background: linear-gradient(180deg, #a9a59c, #d7d2c8 60%, #ece8e0);
+}
+
+.k3-cedge {
+  width: var(--rw);
+  height: var(--ct);
+  transform: translate3d(calc(-1 * var(--hw)), 0, var(--cf));
+  border-radius: 0 0 calc(var(--m) * 0.012) calc(var(--m) * 0.012);
+  background:
+    linear-gradient(97deg, transparent 22%, rgb(130 130 140 / 0.3) 22.2%, transparent 22.6%),
+    linear-gradient(80deg, transparent 61%, rgb(140 140 150 / 0.26) 61.2%, transparent 61.6%),
+    linear-gradient(180deg, #fff 0 1.5px, #fffefb 2px, #f6f3ed 18%, #e2ddd3 60%, #bdb5a8 100%);
+  box-shadow: 0 calc(var(--m) * 0.014) calc(var(--m) * 0.024) rgb(20 12 4 / 0.4);
+}
+.k3-cedge::after {
+  background:
+    radial-gradient(calc(var(--m) * 0.8) 140% at 50% 0, color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 55%), transparent), transparent),
+    radial-gradient(calc(var(--m) * 0.14) 120% at calc(50% + var(--m) * 0.4) 0, rgb(141 255 224 / calc(var(--idle) * 0.25)), transparent),
+    radial-gradient(calc(var(--m) * 0.4) 120% at calc(var(--hw) - var(--m) * 0.66) 0, rgb(255 214 150 / calc(var(--on) * 0.35)), transparent);
+}
+
+/* lower cabinets: green, brass pulls */
+.k3-base {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: calc(var(--m) * 0.15) 1fr;
+  gap: calc(var(--m) * 0.012);
+  width: var(--rw);
+  height: calc(var(--m) * 0.69);
+  padding: calc(var(--m) * 0.024) calc(var(--m) * 0.014) calc(var(--m) * 0.014);
+  transform: translate3d(calc(-1 * var(--hw)), var(--ct), calc(var(--m) * 0.42));
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.2) calc(var(--m) * 0.02), transparent calc(var(--m) * 0.05)),
+    linear-gradient(90deg, rgb(0 0 0 / 0.38), transparent 6% 94%, rgb(0 0 0 / 0.38)),
+    linear-gradient(90deg, #22342c, #2c4239 50%, #22342c);
+}
+.k3-base::after {
+  background:
+    radial-gradient(calc(var(--m) * 0.9) calc(var(--m) * 0.5) at 50% 0, color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 45%), transparent), transparent),
+    radial-gradient(calc(var(--m) * 0.5) calc(var(--m) * 0.3) at calc(var(--hw) - var(--m) * 0.66) 0, rgb(255 210 150 / calc(var(--on) * 0.12)), transparent),
+    linear-gradient(90deg, var(--gold), transparent 50%);
+}
+.k3-drw,
+.k3-dr {
+  position: relative;
+  z-index: 1;
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 30%),
+    linear-gradient(100deg, rgb(255 255 255 / 0.05), transparent 40%),
+    linear-gradient(180deg, #3e594b, #33493f);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.32),
+    inset 0 2px 0 rgb(255 255 255 / 0.16),
+    inset 2px 0 0 rgb(255 255 255 / 0.07),
+    inset 0 -2px 0 rgb(0 0 0 / 0.25),
+    0 3px 5px rgb(0 0 0 / 0.4);
+}
+.k3-drw::before,
+.k3-dr::before {
+  content: "";
+  position: absolute;
+  inset: 14% 9%;
+  border-radius: 2px;
+  box-shadow:
+    inset 2px 2px 3px rgb(0 0 0 / 0.45),
+    inset -1px -1px 0 rgb(255 255 255 / 0.14),
+    0 0 0 1px rgb(255 255 255 / 0.05);
+}
+.k3-dr::before { inset: 8% 12%; }
+.k3-drw::after,
+.k3-dr::after {
+  content: "";
+  position: absolute;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #fff1c0, #d4a84a 45%, #8a6420);
+  box-shadow: 0 3px 3px rgb(0 0 0 / 0.5);
+}
+.k3-drw::after {
+  top: calc(50% - var(--m) * 0.008);
+  left: 32%;
+  right: 32%;
+  height: calc(var(--m) * 0.016);
+}
+.k3-dr::after {
+  top: 7%;
+  width: calc(var(--m) * 0.014);
+  height: 22%;
+}
+.k3-dr:nth-of-type(odd)::after { right: 7%; }
+.k3-dr:nth-of-type(even)::after { left: 7%; }
+
+/* tea towel over the second drawer's bar */
+.k3-towel {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--rw) * 1.5 / 7);
+  top: calc(var(--m) * 0.088);
+  width: calc(var(--m) * 0.15);
+  height: calc(var(--m) * 0.4);
+  translate: -50% 0;
+  rotate: 1.5deg;
+  border-radius: 3px 3px 2px 2px;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.25), transparent 12%),
+    linear-gradient(180deg, transparent 0 82%, #c94f3a 82% 85%, transparent 85% 88%, #c94f3a 88% 90%, transparent 90%),
+    linear-gradient(90deg, transparent 0 16%, rgb(201 79 58 / 0.85) 16% 21%, transparent 21% 79%, rgb(201 79 58 / 0.85) 79% 84%, transparent 84%),
+    repeating-linear-gradient(0deg, rgb(150 130 100 / 0.12) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, #e8e0cf, #faf6ec 40%, #e8e0cf);
+  box-shadow: calc(var(--m) * 0.01) calc(var(--m) * 0.015) calc(var(--m) * 0.02) rgb(0 0 0 / 0.4);
+  clip-path: polygon(0 0, 100% 0, 100% 97%, 88% 100%, 75% 97%, 62% 100%, 50% 97%, 38% 100%, 25% 97%, 12% 100%, 0 97%);
+}
+.k3-towel::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 14%;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #faf6ec, #d8cfbd);
+}
+
+.k3-toe {
+  width: var(--rw);
+  height: calc(var(--m) * 0.05);
+  transform: translate3d(calc(-1 * var(--hw)), calc(var(--m) * 0.75), calc(var(--m) * 0.38));
+  background: linear-gradient(180deg, #050807, #121b17);
+}
+
+/* ---------- Floor ---------------------------------------------------------- */
+
+/* harlequin cement tiles in front of the cabinets */
+.k3-floor {
+  --tile: calc(var(--m) * 0.26);
+  width: calc(var(--rw) + 2 * var(--wt));
+  height: calc(var(--fz) - var(--f0));
+  transform: translate3d(calc(-1 * var(--hw) - var(--wt)), var(--fy), var(--f0)) rotateX(90deg);
+  background:
+    /* toe-kick AO, side AO, front edge highlight */
+    linear-gradient(180deg, rgb(16 10 4 / 0.7), rgb(16 10 4 / 0.3) calc(var(--m) * 0.05), rgb(16 10 4 / 0.1) calc(var(--m) * 0.14), transparent calc(var(--m) * 0.26)),
+    linear-gradient(90deg, rgb(16 10 4 / 0.3), transparent calc(var(--wt) + var(--m) * 0.3) calc(100% - var(--wt) - var(--m) * 0.3), rgb(16 10 4 / 0.3)),
+    linear-gradient(0deg, rgb(255 240 210 / 0.35), transparent calc(var(--m) * 0.02)),
+    /* soft sheen */
+    radial-gradient(50% 70% at 32% 40%, rgb(255 238 204 / 0.22), transparent 70%),
+    /* grout along the diamonds' edges */
+    linear-gradient(45deg, transparent calc(50% - 0.8px), rgb(80 60 40 / 0.4) 0 calc(50% + 0.8px), transparent 0) 0 0 / var(--tile) var(--tile),
+    linear-gradient(-45deg, transparent calc(50% - 0.8px), rgb(80 60 40 / 0.4) 0 calc(50% + 0.8px), transparent 0) 0 0 / var(--tile) var(--tile),
+    /* worn, mottled cement */
+    radial-gradient(circle at 30% 40%, rgb(255 255 255 / 0.06) 0 1px, transparent 2px) 0 0 / 9px 9px,
+    radial-gradient(40% 40% at 60% 60%, rgb(0 0 0 / 0.06), transparent) 0 0 / calc(var(--tile) * 1.5) calc(var(--tile) * 1.1),
+    repeating-conic-gradient(from 45deg, #efe2c5 0 25%, #b55f3e 0 50%) 0 0 / var(--tile) var(--tile);
+}
+.k3-floor::after {
+  background:
+    radial-gradient(calc(var(--m) * 1.1) calc(var(--m) * 0.6) at 50% 0, color-mix(in srgb, var(--k3-glow) calc(var(--spill) * 38%), transparent), transparent),
+    radial-gradient(calc(var(--m) * 1.6) calc(var(--m) * 0.9) at 0 40%, rgb(var(--k3-pc) / calc(var(--patch) * 0.35)), transparent),
+    linear-gradient(90deg, var(--gold), transparent 60%);
+}
+.k3-rug {
+  width: calc(var(--m) * 1.7);
+  height: calc(var(--m) * 0.52);
+  transform: translate3d(calc(var(--m) * -0.85), calc(var(--fy) - 1px), calc(var(--m) * 0.68)) rotateX(90deg);
+  border-radius: calc(var(--m) * 0.006);
+  background:
+    /* fringe */
+    repeating-linear-gradient(180deg, #f1e6cc 0 2px, transparent 2px 5px) 0 0 / calc(var(--m) * 0.035) 100% no-repeat,
+    repeating-linear-gradient(180deg, #f1e6cc 0 2px, transparent 2px 5px) 100% 0 / calc(var(--m) * 0.035) 100% no-repeat,
+    /* wool weave */
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.07) 0 1px, transparent 1px 3px),
+    /* medallions: cream centres, green rings, mustard diamonds */
+    radial-gradient(circle, #f1e6cc 0 calc(var(--m) * 0.016), #2f5d50 0 calc(var(--m) * 0.03), transparent 0) calc(var(--m) * -0.085) 50% / calc(var(--m) * 0.24) calc(var(--m) * 0.24) repeat-x,
+    repeating-conic-gradient(from 45deg, #d9a63b 0 25%, transparent 0 50%) calc(var(--m) * 0.035) 50% / calc(var(--m) * 0.24) calc(var(--m) * 0.24) repeat-x,
+    /* borders */
+    linear-gradient(180deg, #23395a 0 8%, #d9a63b 8% 10%, transparent 10% 90%, #d9a63b 90% 92%, #23395a 92%),
+    linear-gradient(90deg, transparent 0 calc(var(--m) * 0.035), #23395a 0 calc(var(--m) * 0.075), transparent 0 calc(100% - var(--m) * 0.075), #23395a 0 calc(100% - var(--m) * 0.035), transparent 0),
+    linear-gradient(90deg, transparent calc(var(--m) * 0.035), #9c3420 0 calc(100% - var(--m) * 0.035), transparent 0);
+  box-shadow: 0 0 calc(var(--m) * 0.01) rgb(20 10 4 / 0.4);
+}
+.k3-floor-front,
+.k3-floor-l,
+.k3-floor-r {
+  width: calc(var(--rw) + 2 * var(--wt));
+  height: var(--fth);
+  transform: translate3d(calc(-1 * var(--hw) - var(--wt)), var(--fy), var(--fz));
+  background:
+    /* finished floor: tile, mortar bed, screed */
+    linear-gradient(180deg, #fff6e2 0 1px, #c98d68 1px calc(var(--m) * 0.016), #7c6a54 calc(var(--m) * 0.016) calc(var(--m) * 0.019), #b9ab92 calc(var(--m) * 0.019) calc(var(--m) * 0.034), #6b5d48 calc(var(--m) * 0.034) calc(var(--m) * 0.037), transparent 0),
+    linear-gradient(0deg, #f6efe0 0 3px, transparent 3px),
+    repeating-linear-gradient(45deg, rgb(110 84 52 / 0.24) 0 2px, transparent 2px 10px),
+    linear-gradient(180deg, #d9cbad, #c3b290);
+  box-shadow: inset 0 0 0 1px rgb(80 60 40 / 0.4);
+}
+.k3-floor-l,
+.k3-floor-r { width: calc(var(--fz) - var(--wz) + var(--wt)); }
+.k3-floor-l { transform: translate3d(calc(-1 * var(--hw) - var(--wt)), var(--fy), calc(var(--wz) - var(--wt))) rotateY(-90deg); }
+.k3-floor-r { transform: translate3d(calc(var(--hw) + var(--wt)), var(--fy), var(--fz)) rotateY(90deg); }
+
+/* ---------- Billboard props ----------------------------------------------- */
+
+.k3-bb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--w) * var(--m));
+  transform-origin: 0 0;
+  transform:
+    translate3d(calc(var(--x) * var(--m)), 0, calc(var(--z) * var(--m) + var(--wall, 0) * var(--wz)))
+    rotateX(var(--tilt, 0deg))
+    translate(-50%, -100%);
+}
+.k3-bb svg,
+.k3-rb svg,
+.k3-wi svg,
+.k3-jars svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+/* leaves only: filters are safe here */
+.k3-bb,
+.k3-rb,
+.k3-wi,
+.k3-jars {
+  filter:
+    brightness(calc(1 - var(--k3-night) * 0.72 + var(--spill) * 0.28))
+    saturate(calc(1 - var(--k3-night) * 0.35));
+}
+.k3-steam path {
+  opacity: 0;
+  transform-box: fill-box;
+  animation: k3-steam 3.4s ease-in-out infinite;
+}
+.k3-steam path + path { animation-delay: -1.7s; }
+
+/* ---------- Recipe card (screen-space HUD) -------------------------------- */
+
+.k-card {
+  --k-paper: #fbf6e8;
+  --k-ink: #2a2620;
+  --k-rule: rgb(70 120 190 / 0.22);
+  --k-margin: rgb(200 60 50 / 0.35);
+  --k-lh: 24px;
+  position: relative;
+  z-index: 25;
+  box-sizing: border-box;
+  width: min(680px, calc(100% - 32px));
+  margin: 28px auto 36px;
+  padding: 16px 18px 14px 32px;
+  border-radius: 2px;
+  color: var(--k-ink);
+  font: 600 20px/var(--k-lh) "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  background:
+    linear-gradient(90deg, transparent 21px, var(--k-margin) 21px 22px, transparent 22px),
+    repeating-linear-gradient(180deg, transparent 0 calc(var(--k-lh) - 1px), var(--k-rule) calc(var(--k-lh) - 1px) var(--k-lh)) 0 12px,
+    radial-gradient(circle at 20% 30%, rgb(160 130 80 / 0.07) 0 1px, transparent 1.5px) 0 0 / 6px 6px,
+    linear-gradient(170deg, #fffdf5, var(--k-paper));
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.12), 4px 12px 22px -6px rgb(40 25 10 / 0.5);
+  transform: rotate(-1deg);
+}
+.k-card::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: calc(50% - 46px);
+  width: 92px;
+  height: 25px;
+  transform: rotate(3deg);
+  background:
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.22) 0 2px, transparent 2px 5px),
+    rgb(236 226 190 / 0.78);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  clip-path: polygon(2% 0, 98% 6%, 100% 50%, 97% 100%, 1% 94%, 0 50%);
+}
+.k-card h2 {
+  margin: 0 0 6px;
+  font: 600 32px/1 "Caveat", "Segoe Print", cursive;
+  color: var(--k-ink);
+}
+.k-card h2 span {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 22px;
+}
+.k-card ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.k-card li { margin-bottom: 2px; padding-left: 2px; }
+.k-card li::marker { font-weight: 700; }
+.k-card b { font-weight: 700; letter-spacing: 0.02em; }
+.k-card-foot { margin: 8px 0 0; font-size: 19px; }
+.k-card a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.k-card a:hover { text-decoration-thickness: 2.5px; }
+.k-card a:focus-visible {
+  outline: 3px solid #1a5cff;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+@media (min-width: 640px) and (max-width: 1099px) {
+  .k-card ol { columns: 2; column-gap: 28px; }
+  .k-card li { break-inside: avoid; }
+}
+@media (min-width: 1100px) {
+  .k-card {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: clamp(240px, 21vw, 310px);
+    margin: 0;
+    transform: rotate(-2deg);
+  }
+}
+
+/* moonlit card: dimmer paper, ink still >= 4.5:1 */
+:root[data-lights="off"] .k-card {
+  --k-paper: #7d8699;
+  --k-ink: #0d1119;
+  --k-rule: rgb(20 30 60 / 0.25);
+  --k-margin: rgb(80 20 30 / 0.35);
+  background:
+    linear-gradient(90deg, transparent 21px, var(--k-margin) 21px 22px, transparent 22px),
+    repeating-linear-gradient(180deg, transparent 0 calc(var(--k-lh) - 1px), var(--k-rule) calc(var(--k-lh) - 1px) var(--k-lh)) 0 12px,
+    linear-gradient(170deg, #8890a2, #7a8396);
+  box-shadow: 4px 12px 22px -6px rgb(0 0 0 / 0.7);
+}
+:root[data-lights="off"] .k-card::before { background: rgb(140 140 130 / 0.7); }
+:root[data-lights="off"] .k-card a:focus-visible { outline-color: #0d1119; }
+
+/* ---------- Motion -------------------------------------------------------- */
+
+:root.k-flicker[data-lights="on"] { animation: k3-flicker 0.6s linear both; }
+:root.k-flicker[data-lights="on"] :is(.k3-bulb, .k3-pool, .k3-bloom, .k3-cone, .k3-mouth, .k3-flush) { animation: k3-flicker-bulb 0.6s linear both; }
+
+@keyframes k3-flicker {
+  0% { --k3-night: 1; }
+  12% { --k3-night: 0.3; }
+  20% { --k3-night: 0.9; }
+  32% { --k3-night: 0.12; }
+  44% { --k3-night: 0.65; }
+  58% { --k3-night: 0; }
+  70% { --k3-night: 0.28; }
+  100% { --k3-night: 0; }
+}
+@keyframes k3-flicker-bulb {
+  0%, 20%, 44% { opacity: 0.25; }
+  12%, 32%, 58%, 100% { opacity: 1; }
+  70% { opacity: 0.6; }
+}
+@keyframes k3-twinkle { from { opacity: 0.6; } to { opacity: 1; } }
+@keyframes k3-tick { to { rotate: 360deg; } }
+@keyframes k3-drift {
+  from { translate: -120% 0; }
+  to { translate: 200% 0; }
+}
+@keyframes k3-mote {
+  0% { translate: 0 0; opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { translate: calc(var(--m) * 0.05) calc(var(--m) * -0.035); opacity: 0.5; }
+}
+@keyframes k3-steam {
+  0% { transform: translateY(10px) scaleX(0.8); opacity: 0; }
+  35% { opacity: 0.55; }
+  100% { transform: translateY(-14px) scaleX(1.2); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  .k3-room *,
+  .k3-room *::before,
+  .k3-room *::after,
+  .k-card {
+    animation: none !important;
+    transition: none !important;
+  }
+  .k3-steam path { opacity: 0.4; }
+}

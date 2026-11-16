@@ -1,0 +1,138 @@
+<media-container class="mw" data-preset="video">
+<mw-brain hidden></mw-brain>
+<div class="mw-body">
+
+<div class="mw-bay">
+<div class="mw-cavity" aria-hidden="true"><span class="mw-cavity-plate"></span></div>
+<div class="mw-steam" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+
+<div class="mw-door">
+<div class="mw-window">
+<!-- Add a compatible media component here. -->
+<media-poster class="mw-poster">
+<img alt="" decoding="async" class="mw-poster-image">
+</media-poster>
+<div class="mw-popcorn" aria-hidden="true"></div>
+<div class="mw-glass" aria-hidden="true"></div>
+<div class="mw-fog" aria-hidden="true"></div>
+<media-seek-indicator class="mw-seek-flash">
+<media-seek-indicator-value></media-seek-indicator-value>
+</media-seek-indicator>
+<media-error-dialog>
+<media-dialog-backdrop class="mw-error-backdrop"></media-dialog-backdrop>
+<media-dialog-popup class="mw-error">
+<p class="mw-error-code" aria-hidden="true">Err</p>
+<media-dialog-title class="mw-error-title"></media-dialog-title>
+<media-dialog-description class="mw-error-text"></media-dialog-description>
+<media-dialog-close class="mw-key mw-error-close"></media-dialog-close>
+</media-dialog-popup>
+</media-error-dialog>
+</div>
+
+<div class="mw-rail-row">
+<media-time-slider class="mw-rail" thumb-alignment="center">
+<media-time-slider-chapters class="mw-rail-chapters">
+<template>
+<div class="mw-rail-chapter">
+<media-slider-track class="mw-rail-track">
+<media-slider-buffer class="mw-rail-buffer"></media-slider-buffer>
+<media-slider-fill class="mw-rail-fill"></media-slider-fill>
+</media-slider-track>
+</div>
+</template>
+</media-time-slider-chapters>
+<media-slider-thumb class="mw-plate"><span class="mw-plate-glass" aria-hidden="true"></span></media-slider-thumb>
+<media-slider-preview class="mw-rail-preview" overflow="clamp">
+<media-slider-thumbnail class="mw-rail-thumb" crossorigin="anonymous"></media-slider-thumbnail>
+<span class="mw-rail-preview-text">
+<media-time-slider-chapter-title class="mw-rail-chapter-title"></media-time-slider-chapter-title>
+<media-slider-value type="pointer" class="mw-rail-time"></media-slider-value>
+</span>
+</media-slider-preview>
+</media-time-slider>
+</div>
+
+<p class="mw-badge" aria-hidden="true">VJS·1000<span>watts of video</span></p>
+
+<mw-door-toggle class="mw-handle-host"><button type="button" class="mw-handle"><span class="mw-handle-grip" aria-hidden="true"></span></button></mw-door-toggle>
+</div>
+<div class="mw-leaf" aria-hidden="true">
+<span class="mw-leaf-frame"></span>
+<span class="mw-leaf-glass"></span>
+<span class="mw-leaf-grip"></span>
+<span class="mw-badge mw-leaf-badge">VJS·1000<span>watts of video</span></span>
+</div>
+</div>
+
+<div class="mw-panel">
+<div class="mw-vents" aria-hidden="true"></div>
+
+<mw-display class="mw-display"></mw-display>
+
+<mw-presets class="mw-presets" role="group" aria-label="Cooking modes (playback speed)">
+<button type="button" class="mw-key mw-preset" data-rate="0.5" aria-label="Defrost: half speed">DEFROST<small>½×</small></button>
+<button type="button" class="mw-key mw-preset" data-rate="1" aria-label="Reheat: normal speed">REHEAT<small>1×</small></button>
+<button type="button" class="mw-key mw-preset" data-rate="2" aria-label="Popcorn: double speed">POPCORN<small>2×</small></button>
+</mw-presets>
+
+<mw-keypad class="mw-keypad" role="group" aria-label="Keypad: tap numbers to type a time and press Start to jump there, or hold a number to jump to that tenth of the video">
+<button type="button" class="mw-key mw-digit" data-digit="1" aria-label="1, hold to jump to 10%">1<small aria-hidden="true">10%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="2" aria-label="2, hold to jump to 20%">2<small aria-hidden="true">20%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="3" aria-label="3, hold to jump to 30%">3<small aria-hidden="true">30%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="4" aria-label="4, hold to jump to 40%">4<small aria-hidden="true">40%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="5" aria-label="5, hold to jump to 50%">5<small aria-hidden="true">50%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="6" aria-label="6, hold to jump to 60%">6<small aria-hidden="true">60%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="7" aria-label="7, hold to jump to 70%">7<small aria-hidden="true">70%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="8" aria-label="8, hold to jump to 80%">8<small aria-hidden="true">80%</small></button>
+<button type="button" class="mw-key mw-digit" data-digit="9" aria-label="9, hold to jump to 90%">9<small aria-hidden="true">90%</small></button>
+<media-seek-button seconds="-10" class="mw-key mw-skip">−10<small>sec</small></media-seek-button>
+<button type="button" class="mw-key mw-digit" data-digit="0" aria-label="0, hold to jump to 0%">0<small aria-hidden="true">0%</small></button>
+<media-seek-button seconds="10" class="mw-key mw-skip">+10<small>sec</small></media-seek-button>
+</mw-keypad>
+
+<div class="mw-power-row">
+<div class="mw-knob-wrap">
+<span class="mw-knob-scale" aria-hidden="true"></span>
+<span class="mw-knob-label" aria-hidden="true">PWR</span>
+<media-volume-slider class="mw-knob" label="Power level (volume)" step="10" large-step="20">
+<media-slider-track class="mw-knob-track">
+<media-slider-fill class="mw-knob-fill"></media-slider-fill>
+</media-slider-track>
+<media-slider-thumb class="mw-knob-thumb"><span class="mw-knob-cap" aria-hidden="true"></span></media-slider-thumb>
+</media-volume-slider>
+</div>
+<div class="mw-power-side">
+<media-mute-button class="mw-key mw-quiet">
+<span class="mw-when-loud">QUIET</span><span class="mw-when-quiet">SOUND</span>
+</media-mute-button>
+<media-fullscreen-button class="mw-key mw-serve">
+<span class="mw-when-closed">SERVE ⤢</span><span class="mw-when-open">BACK ⤡</span>
+</media-fullscreen-button>
+</div>
+</div>
+
+<div class="mw-go-row">
+<mw-stop class="mw-stop"><button type="button" class="mw-big mw-big-stop">STOP<small>CLEAR</small></button></mw-stop>
+<mw-start class="mw-start"><button type="button" class="mw-big mw-big-start">START<small>+30 SEC</small></button></mw-start>
+</div>
+<mw-door-toggle class="mw-release-host"><button type="button" class="mw-release"><span aria-hidden="true">⏏</span> PUSH · DOOR</button></mw-door-toggle>
+</div>
+
+</div>
+
+<media-hotkey keys="Space" action="togglePaused"></media-hotkey>
+<media-hotkey keys="k" action="togglePaused"></media-hotkey>
+<media-hotkey keys="m" action="toggleMuted"></media-hotkey>
+<media-hotkey keys="ArrowRight" action="seekStep"></media-hotkey>
+<media-hotkey keys="ArrowLeft" action="seekStep"></media-hotkey>
+<media-hotkey keys="l" action="seekStep" value="10"></media-hotkey>
+<media-hotkey keys="j" action="seekStep" value="-10"></media-hotkey>
+<media-hotkey keys="ArrowUp" action="volumeStep"></media-hotkey>
+<media-hotkey keys="ArrowDown" action="volumeStep"></media-hotkey>
+<media-hotkey keys="Home" action="seekToPercent" value="0"></media-hotkey>
+<media-hotkey keys="End" action="seekToPercent" value="100"></media-hotkey>
+<media-hotkey keys=">" action="speedUp"></media-hotkey>
+<media-hotkey keys="<" action="speedDown"></media-hotkey>
+<media-hotkey keys="f" action="toggleFullscreen"></media-hotkey>
+<media-status-announcer class="mw-sr-only"></media-status-announcer>
+</media-container>

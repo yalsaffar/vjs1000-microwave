@@ -1,0 +1,1650 @@
+/* ==========================================================================
+   VJS·1000 — a countertop microwave video player skin for Video.js v10
+   Light: cream enamel oven in a lit kitchen.
+   Dark: the same oven with the kitchen lights off: shaded body, backlit keys.
+   Colour scheme comes from `color-scheme` (light-dark()), so a page can flip it.
+   ========================================================================== */
+
+@property --media-slider-fill {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+@property --media-slider-buffer {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+/* ---------- Tokens -------------------------------------------------------- */
+
+.mw {
+  --mw-accent: var(--media-accent-color, #ff9f2e);
+  --mw-radius: var(--media-border-radius, 18px);
+
+  /* Ambient colour of the picture, written by <mw-brain>. Defaults to the warm oven lamp. */
+  --mw-amb: 255 186 110;
+  --mw-amb-l: var(--mw-amb);
+  --mw-amb-r: var(--mw-amb);
+  --mw-vol: 1;
+
+  --mw-cabinet: light-dark(#ece2cb, #2f2b25);
+  --mw-cabinet-hi: light-dark(#fbf4e3, #3d3830);
+  --mw-cabinet-lo: light-dark(#cdbf9f, #1b1915);
+  --mw-cabinet-edge: light-dark(#b5a47c, #0e0d0b);
+  --mw-sheen: light-dark(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.04));
+  --mw-door: light-dark(#1e1c1a, #121110);
+  --mw-door-hi: light-dark(#3b3631, #26231f);
+  --mw-chrome-1: light-dark(#ffffff, #b9b5ad);
+  --mw-chrome-2: light-dark(#bcb5a7, #5e5a54);
+  --mw-chrome-3: light-dark(#8a8376, #34312d);
+
+  --mw-panel: light-dark(#e6dbc1, #26231e);
+  --mw-ink: light-dark(#2b261f, #f3e9d8);
+  --mw-ink-soft: light-dark(#5e5545, #c9b99c);
+  --mw-key: light-dark(#fbf7ec, #2a2620);
+  --mw-key-lo: light-dark(#cfc4a8, #0d0c0a);
+  --mw-key-ink: light-dark(#2b261f, #ffd9a0);
+  --mw-key-glow: light-dark(transparent, rgb(255 176 80 / 0.6));
+  --mw-key-hi: light-dark(rgb(255 255 255 / 0.55), rgb(255 255 255 / 0.07));
+  --mw-key-on: light-dark(#ffe2b0, #5a4220);
+  --mw-scale-off: light-dark(rgb(43 38 31 / 0.25), rgb(255 255 255 / 0.14));
+  --mw-vent: light-dark(rgb(58 51 42 / 0.55), rgb(0 0 0 / 0.9));
+
+  --mw-go: light-dark(#2f8a4c, #2c9653);
+  --mw-go-lo: light-dark(#1f5f34, #164a29);
+  --mw-stop: light-dark(#c63a2d, #c9402f);
+  --mw-stop-lo: light-dark(#86251c, #6d1f17);
+
+  --mw-vfd: #8dffe0;
+  --mw-vfd-glow: rgb(141 255 224 / 0.55);
+  --mw-vfd-off: rgb(141 255 224 / 0.075);
+  --mw-vfd-bg: #060a09;
+  --mw-vfd-spill: light-dark(transparent, rgb(141 255 224 / 0.3));
+
+  /* With the lights off, the picture lights up the front of the oven. */
+  --mw-front-spill: light-dark(transparent, rgb(var(--mw-amb) / 0.2));
+
+  --mw-focus: light-dark(#1a5cff, #8db8ff);
+  --mw-focus-halo: light-dark(rgb(255 255 255 / 0.92), rgb(0 0 0 / 0.85));
+  --mw-font: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --mw-key-h: 36px;
+
+  container: mw / inline-size;
+  position: relative;
+  display: block;
+  width: 100%;
+  font-family: var(--mw-font);
+  color: var(--mw-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (pointer: coarse) {
+  .mw {
+    --mw-key-h: 44px;
+  }
+}
+
+.mw,
+.mw *,
+.mw ::before,
+.mw ::after {
+  box-sizing: border-box;
+}
+
+:where(.mw) :is(p, button) {
+  margin: 0;
+}
+
+:where(.mw) button {
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+.mw [hidden][hidden] {
+  display: none !important;
+}
+
+.mw-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One focus style for every control: thick, offset, and visible on any surface. */
+.mw :is(button, [role="button"], [role="slider"], media-seek-button, media-mute-button, media-fullscreen-button, mw-display):focus-visible {
+  outline: 3px solid var(--mw-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--mw-focus-halo);
+}
+
+/* ---------- The oven ------------------------------------------------------ */
+
+.mw-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(196px, 26cqi, 250px);
+  gap: clamp(10px, 1.6cqi, 16px);
+  padding: clamp(10px, 1.8cqi, 18px);
+  border-radius: var(--mw-radius);
+  background:
+    radial-gradient(60% 80% at 34% 50%, var(--mw-front-spill), transparent 70%),
+    radial-gradient(140% 70% at 30% -10%, var(--mw-sheen), transparent 55%),
+    linear-gradient(180deg, var(--mw-cabinet-hi), var(--mw-cabinet) 16%, var(--mw-cabinet) 84%, var(--mw-cabinet-lo));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.45),
+    inset 0 -3px 0 var(--mw-cabinet-edge),
+    inset 1px 0 0 rgb(255 255 255 / 0.2),
+    inset -1px 0 0 rgb(0 0 0 / 0.12),
+    0 1px 0 var(--mw-cabinet-edge),
+    0 22px 40px -18px rgb(0 0 0 / 0.6),
+    0 5px 12px -4px rgb(0 0 0 / 0.3);
+}
+
+/* The spill only shows while cooking. */
+.mw:not([data-mw-state="cooking"], [data-mw-state="waiting"]) {
+  --mw-front-spill: transparent;
+}
+
+/* ---------- Door bay, interior and the swinging door ------------------------ */
+
+.mw-bay {
+  --mw-door-pad: clamp(10px, 1.6cqi, 16px);
+  --mw-handle-w: 46px;
+  position: relative;
+  display: grid;
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+  border-radius: calc(var(--mw-radius) - 6px);
+}
+
+/* What you see behind the door when it pops open. */
+.mw-cavity {
+  position: absolute;
+  inset: 6px;
+  overflow: hidden;
+  border-radius: calc(var(--mw-radius) - 8px);
+  background:
+    radial-gradient(70% 55% at 50% 10%, rgb(255 214 150 / 0.55), transparent 70%),
+    linear-gradient(90deg, #3a3833 0 9%, #59564f 9% 91%, #3a3833 91%),
+    #4a4741;
+  box-shadow: inset 0 0 40px rgb(0 0 0 / 0.75);
+}
+
+.mw-cavity::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(100deg, rgb(0 0 0 / 0.45), transparent 14%),
+    linear-gradient(260deg, rgb(0 0 0 / 0.45), transparent 14%),
+    linear-gradient(0deg, rgb(0 0 0 / 0.35), transparent 30%);
+}
+
+.mw-cavity-plate {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 10%;
+  height: 22%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 0.5), rgb(220 230 235 / 0.35) 55%, rgb(120 130 135 / 0.5) 70%, rgb(255 255 255 / 0.25) 80%, transparent 82%);
+}
+
+.mw-door {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--mw-handle-w);
+  grid-template-rows: 1fr auto;
+  gap: 8px 6px;
+  padding: var(--mw-door-pad);
+  border-radius: calc(var(--mw-radius) - 6px);
+  background: linear-gradient(160deg, var(--mw-door-hi), var(--mw-door) 40%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 0 0 1px rgb(0 0 0 / 0.5),
+    0 2px 0 rgb(0 0 0 / 0.25);
+  transform-origin: 0% 50%;
+  transition: transform 0.7s cubic-bezier(0.3, 1.2, 0.4, 1), box-shadow 0.7s ease;
+}
+
+/* ---------- Door opened by hand: the door leaf swings away, the picture stays inside ---------- */
+
+/* The leaf is a copy of the door's frame and glass that does the swinging. Closed, it is
+   invisible (the real door draws itself); open, the real door turns into the oven interior. */
+.mw-leaf {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: calc(var(--mw-radius) - 6px);
+  transform-origin: 0 50%;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform 0.9s cubic-bezier(0.25, 1.1, 0.35, 1),
+    opacity 0s linear 0.9s,
+    visibility 0s linear 0.9s;
+}
+
+.mw-leaf-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding:
+    var(--mw-door-pad)
+    calc(var(--mw-door-pad) + var(--mw-handle-w) + 6px)
+    calc(var(--mw-door-pad) + 48px)
+    var(--mw-door-pad);
+  background: linear-gradient(160deg, var(--mw-door-hi), var(--mw-door) 40%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(0 0 0 / 0.5);
+  /* cut out the window */
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+}
+
+.mw-leaf-glass {
+  position: absolute;
+  top: var(--mw-door-pad);
+  left: var(--mw-door-pad);
+  right: calc(var(--mw-door-pad) + var(--mw-handle-w) + 6px);
+  bottom: calc(var(--mw-door-pad) + 48px);
+  border-radius: 10px;
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 0.16) 0%, rgb(255 255 255 / 0.04) 22%, transparent 23%, transparent 60%, rgb(255 255 255 / 0.07) 61%, transparent 75%),
+    radial-gradient(circle at center, rgb(0 0 0 / 0.55) 0 0.7px, transparent 1px) 0 0 / 3px 3px,
+    rgb(20 18 16 / 0.55);
+  box-shadow: 0 0 0 3px #0a0a0a;
+}
+
+.mw-leaf-grip {
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  right: calc(var(--mw-door-pad) + (var(--mw-handle-w) - 16px) / 2);
+  width: 16px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, var(--mw-chrome-3), var(--mw-chrome-1) 35%, var(--mw-chrome-2) 70%, var(--mw-chrome-3));
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6), 5px 6px 8px rgb(0 0 0 / 0.55);
+}
+
+.mw[data-mw-door="open"] .mw-leaf {
+  opacity: 1;
+  visibility: visible;
+  transform: rotateY(-108deg);
+  transition: transform 1s cubic-bezier(0.25, 1.15, 0.35, 1);
+}
+
+.mw[data-mw-door="open"] .mw-bay {
+  perspective: 2400px;
+}
+
+/* With the door open, the real door becomes the oven's interior: no mesh, lamp on. */
+.mw[data-mw-door="open"] .mw-door {
+  background:
+    radial-gradient(70% 50% at 50% 0%, rgb(255 222 165 / 0.55), transparent 70%),
+    linear-gradient(90deg, #4a4740 0 4%, #6b675e 4% 96%, #4a4740 96%),
+    #5a564e;
+  box-shadow: inset 0 0 40px rgb(0 0 0 / 0.55);
+}
+
+.mw[data-mw-door="open"] .mw-glass,
+.mw[data-mw-door="open"] .mw-fog {
+  opacity: 0;
+}
+
+.mw[data-mw-door="open"] .mw-window {
+  box-shadow:
+    0 0 0 2px rgb(0 0 0 / 0.35),
+    0 10px 24px -8px rgb(0 0 0 / 0.6);
+}
+
+/* The badge is printed on the door, so it leaves with the door leaf. */
+.mw[data-mw-door="open"] .mw-door > .mw-badge {
+  opacity: 0;
+}
+
+.mw-leaf .mw-leaf-badge {
+  z-index: 1;
+  /* printed on the outside: gone once you see the inside of the door */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* The handle stays where it is as the "close" control. */
+.mw[data-mw-door="open"] .mw-handle-grip {
+  opacity: 0.25;
+}
+
+/* Done: the latch releases and the door swings open a little. */
+.mw[data-mw-state="ended"] .mw-door {
+  transform: rotateY(-22deg);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 0 0 1px rgb(0 0 0 / 0.5),
+    30px 10px 40px -10px rgb(0 0 0 / 0.55);
+  transition: transform 1.2s cubic-bezier(0.2, 1.5, 0.35, 1) 0.2s, box-shadow 1.2s ease 0.2s;
+}
+
+/* Steam escaping from the gap */
+.mw-steam {
+  position: absolute;
+  inset-block: 6% 30%;
+  inset-inline-end: 2%;
+  width: 28%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.mw-steam i {
+  position: absolute;
+  bottom: 0;
+  left: calc(var(--i) * 18%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0));
+  filter: blur(6px);
+  opacity: 0;
+}
+
+.mw-steam i:nth-child(1) { --i: 0; --delay: 0.5s; }
+.mw-steam i:nth-child(2) { --i: 1; --delay: 1.2s; }
+.mw-steam i:nth-child(3) { --i: 2; --delay: 1.9s; }
+.mw-steam i:nth-child(4) { --i: 3; --delay: 0.9s; }
+.mw-steam i:nth-child(5) { --i: 4; --delay: 1.6s; }
+
+.mw[data-mw-state="ended"] .mw-steam i {
+  animation: mw-steam 3.2s ease-out var(--delay) 3;
+}
+
+/* ---------- Window ---------------------------------------------------------- */
+
+.mw-window {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+  border-radius: 10px;
+  cursor: pointer;
+  isolation: isolate;
+  /* Taller than the picture? You see the inside of the oven, not black bars. */
+  background: linear-gradient(180deg, #121110, #1d1b18 30%, #1d1b18 70%, #0d0c0b);
+  box-shadow:
+    0 0 0 3px #0a0a0a,
+    0 0 0 4px rgb(255 255 255 / 0.08);
+  transition: box-shadow 0.6s ease, background 0.6s ease;
+}
+
+/* At least 16:9; taller when the panel beside it is taller. */
+.mw-window::before {
+  content: "";
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--mw-ratio, 16 / 9);
+}
+
+.mw-window > :not(.mw-poster, .mw-glass, .mw-fog, .mw-popcorn, media-seek-indicator, media-error-dialog),
+.mw-window video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mw-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.mw-poster:not([data-visible]) {
+  display: none;
+}
+
+.mw-poster-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Inside the oven: a heat line creeps along the bottom of the window as it cooks. */
+.mw-window::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
+  width: calc(var(--mw-progress, 0) * 100%);
+  height: 44px;
+  pointer-events: none;
+  background:
+    radial-gradient(46px 30px at 100% 100%, rgb(255 190 90 / 0.55), transparent 70%),
+    linear-gradient(to top, rgb(255 170 60 / 0.95) 0 3px, rgb(255 150 50 / 0.22) 3px 6px, transparent 6px);
+  filter: drop-shadow(0 0 4px rgb(255 150 50 / 0.7));
+  opacity: 0;
+  transition: width 0.3s linear, opacity 0.5s ease;
+}
+
+.mw:is([data-mw-state="cooking"], [data-mw-state="waiting"], [data-mw-state="paused"]) .mw-window::after {
+  opacity: 1;
+}
+
+.mw[data-mw-state="paused"] .mw-window::after {
+  opacity: 0.55;
+}
+
+/* The glass: perforated shield, reflection and the interior lamp. */
+.mw-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(115deg, rgb(255 255 255 / 0.13) 0%, rgb(255 255 255 / 0.03) 22%, transparent 23%, transparent 60%, rgb(255 255 255 / 0.05) 61%, transparent 75%),
+    radial-gradient(circle at center, rgb(0 0 0 / 0.42) 0 0.7px, transparent 1px) 0 0 / 3px 3px;
+  box-shadow: inset 0 0 50px rgb(0 0 0 / 0.65);
+  transition: background-color 0.5s ease, box-shadow 0.6s ease, opacity 0.5s ease;
+}
+
+/* Lamp off: idle, paused or done. */
+.mw:is(:not([data-mw-state]), [data-mw-state="idle"], [data-mw-state="paused"], [data-mw-state="ended"]) .mw-glass {
+  background-color: rgb(0 0 0 / 0.3);
+}
+
+/* Lamp on while cooking: the glow takes the colour of the picture. */
+.mw:is([data-mw-state="cooking"], [data-mw-state="waiting"]) .mw-glass {
+  box-shadow:
+    inset 0 0 60px rgb(var(--mw-amb) / 0.32),
+    inset 0 18px 40px -20px rgb(255 214 150 / 0.5);
+  opacity: 0.82;
+}
+
+.mw:is([data-mw-state="cooking"], [data-mw-state="waiting"]) .mw-window {
+  background:
+    radial-gradient(80% 60% at 50% 0%, rgb(var(--mw-amb) / 0.45), transparent 70%),
+    linear-gradient(180deg, #2a241c, #3a3328 30%, #2c271f 70%, #17140f);
+  box-shadow:
+    0 0 0 3px #0a0a0a,
+    0 0 0 4px rgb(var(--mw-amb) / 0.4),
+    0 0 30px -2px rgb(var(--mw-amb) / 0.55);
+}
+
+/* Done: the window steams up. */
+.mw-fog {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 18% 30%, rgb(255 255 255 / 0.28) 0 1.6px, transparent 2.4px) 0 0 / 53px 47px,
+    radial-gradient(circle at 63% 71%, rgb(255 255 255 / 0.22) 0 1.1px, transparent 1.9px) 7px 11px / 31px 37px,
+    radial-gradient(circle at 40% 55%, rgb(255 255 255 / 0.18) 0 0.8px, transparent 1.5px) 13px 5px / 19px 23px,
+    radial-gradient(ellipse at 50% 100%, rgb(240 244 246 / 0.75), rgb(225 232 236 / 0.45) 55%, rgb(225 232 236 / 0.2));
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  transition: opacity 0.8s ease;
+}
+
+.mw[data-mw-state="ended"] .mw-fog {
+  opacity: 1;
+  transition: opacity 3s ease 0.2s;
+}
+
+/* POPCORN mode: kernels pop along the bottom of the window. */
+.mw-popcorn {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.mw-popcorn i {
+  position: absolute;
+  bottom: 2%;
+  left: var(--x);
+  width: calc(20px * var(--s));
+  height: calc(17px * var(--s));
+  background:
+    radial-gradient(circle at 30% 40%, #fffaf0 0 32%, transparent 34%),
+    radial-gradient(circle at 68% 38%, #fff6e2 0 30%, transparent 32%),
+    radial-gradient(circle at 50% 68%, #fbeccc 0 34%, transparent 36%),
+    radial-gradient(circle at 50% 80%, #e6b65c 0 14%, transparent 16%);
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.5));
+  animation: mw-pop 1.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+/* Seek feedback from hotkeys: a little display tag in the window corner. */
+.mw-seek-flash {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+  z-index: 5;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--mw-vfd-bg);
+  color: var(--mw-vfd);
+  font: 700 18px/1 var(--mw-font);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 6px var(--mw-vfd-glow);
+  box-shadow: 0 0 0 1px rgb(141 255 224 / 0.25);
+  pointer-events: none;
+}
+
+.mw-seek-flash[data-direction="backward"] media-seek-indicator-value::before { content: "−"; }
+.mw-seek-flash[data-direction="forward"] media-seek-indicator-value::before { content: "+"; }
+
+.mw-seek-flash:not([data-open]) {
+  display: none;
+}
+
+/* ---------- Turntable rail (time slider) ----------------------------------- */
+
+.mw-rail-row {
+  grid-column: 1;
+  grid-row: 2;
+  padding-inline: 14px;
+}
+
+.mw-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.mw-rail:focus-visible {
+  outline: none;
+}
+
+.mw-rail-chapters {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 12px;
+  filter: drop-shadow(0 0 3px rgb(141 255 224 / 0.55));
+}
+
+/* The dark glass bezel the bar graph sits in, and an engraved 10% scale under it. */
+.mw-rail {
+  --mw-seg-w: 4px;
+  --mw-seg-gap: 2px;
+  --mw-seg-off: rgb(141 255 224 / 0.09);
+  --mw-seg-buffer: rgb(141 255 224 / 0.24);
+}
+
+.mw-rail::before {
+  content: "";
+  position: absolute;
+  inset-inline: -9px;
+  top: 50%;
+  height: 22px;
+  translate: 0 -50%;
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 40%),
+    var(--mw-vfd-bg);
+  box-shadow:
+    inset 0 2px 5px rgb(0 0 0 / 0.9),
+    inset 0 0 0 1px rgb(255 255 255 / 0.05),
+    0 1px 0 rgb(255 255 255 / 0.08);
+}
+
+.mw-rail::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: -1px;
+  top: calc(50% + 13px);
+  height: 5px;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.32) 0 1px, transparent 1px 10%);
+  pointer-events: none;
+}
+
+.mw-rail-chapter {
+  position: absolute;
+  inset: 0;
+}
+
+.mw-rail-track {
+  position: absolute;
+  inset: 0;
+  background: var(--mw-seg-off);
+  /* A gap between chapters */
+  clip-path: inset(-4px calc(100% - var(--media-slider-chapter-end, 100%) + 3px) -4px calc(var(--media-slider-chapter-start, 0%) + 3px));
+  /* Segmented like a VFD bar graph */
+  mask: repeating-linear-gradient(90deg, #000 0 var(--mw-seg-w), transparent var(--mw-seg-w) calc(var(--mw-seg-w) + var(--mw-seg-gap)));
+  transition: inset 0.15s ease;
+}
+
+.mw-rail-chapter[data-highlighted] .mw-rail-track {
+  inset: -2px 0;
+}
+
+.mw-rail-buffer,
+.mw-rail-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+}
+
+.mw-rail-buffer {
+  width: var(--media-slider-buffer, 0%);
+  background: var(--mw-seg-buffer);
+}
+
+.mw-rail-fill {
+  width: var(--media-slider-fill, 0%);
+  /* brightest at the leading edge, like a segment that just lit */
+  background:
+    linear-gradient(90deg, transparent calc(100% - 18px), #e8fff8),
+    var(--mw-vfd);
+}
+
+.mw-rail[data-dragging] .mw-rail-fill {
+  width: var(--media-slider-pointer, 0%);
+}
+
+/* The thumb is the glass turntable plate, seen from above. It turns while cooking. */
+.mw-plate {
+  position: absolute;
+  top: 50%;
+  left: var(--media-slider-fill, 0%);
+  width: 34px;
+  height: 34px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0 14%, #d7dde0 15% 18%, #9aa5aa 19% 21%, #e8eef0 22% 58%, #b8c3c8 60% 64%, #f4f7f8 66% 86%, #8d989d 88% 100%);
+  box-shadow:
+    0 0 0 2px #0b0b0b,
+    0 3px 8px rgb(0 0 0 / 0.6);
+  z-index: 2;
+}
+
+.mw-rail[data-dragging] .mw-plate {
+  left: var(--media-slider-pointer, 0%);
+}
+
+.mw-plate-glass {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 0deg, transparent 0 20deg, rgb(255 255 255 / 0.9) 22deg 26deg, transparent 28deg 140deg, rgb(120 130 135 / 0.6) 142deg 146deg, transparent 148deg 260deg, rgb(120 130 135 / 0.5) 262deg 266deg, transparent 268deg);
+}
+
+.mw[data-mw-state="cooking"] .mw-plate-glass {
+  animation: mw-spin 6s linear infinite;
+}
+
+.mw[data-mw-state="cooking"][data-mw-rate="popcorn"] .mw-plate-glass {
+  animation-duration: 3s;
+}
+
+.mw[data-mw-state="cooking"][data-mw-rate="defrost"] .mw-plate-glass {
+  animation-duration: 12s;
+}
+
+.mw-plate:focus-visible {
+  outline: 3px solid var(--mw-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgb(0 0 0 / 0.85), 0 3px 8px rgb(0 0 0 / 0.6);
+}
+
+/* Hover preview: a frame from the storyboard in a little display bezel. */
+.mw-rail-preview {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: var(--media-slider-pointer, 0%);
+  translate: -50% 0;
+  z-index: 6;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--mw-vfd-bg);
+  box-shadow: 0 0 0 1px rgb(141 255 224 / 0.28), 0 10px 24px rgb(0 0 0 / 0.55);
+  pointer-events: none;
+  opacity: 0;
+  scale: 0.94;
+  transform-origin: bottom;
+  transition: opacity 0.15s ease, scale 0.15s ease;
+}
+
+.mw-rail:is([data-pointing], [data-dragging]) .mw-rail-preview {
+  opacity: 1;
+  scale: 1;
+}
+
+.mw-rail-thumb {
+  display: block;
+  width: 168px;
+  max-width: 34cqi;
+  overflow: hidden;
+  border-radius: 5px;
+}
+
+.mw-rail-thumb img {
+  display: block;
+}
+
+.mw-rail-preview-text {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  max-width: 168px;
+  padding: 0 4px 2px;
+  color: var(--mw-vfd);
+  font: 700 16px/1 var(--mw-font);
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 6px var(--mw-vfd-glow);
+  white-space: nowrap;
+}
+
+.mw-rail-chapter-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.mw-rail-chapter-title:empty {
+  display: none;
+}
+
+/* ---------- Badge and handle --------------------------------------------- */
+
+.mw-badge {
+  position: absolute;
+  inset-inline-start: clamp(14px, 2.2cqi, 22px);
+  bottom: 3px;
+  display: none;
+  gap: 6px;
+  align-items: baseline;
+  color: rgb(255 255 255 / 0.55);
+  font: 700 11px/1 var(--mw-font);
+  letter-spacing: 0.22em;
+  pointer-events: none;
+}
+
+.mw-badge span {
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 0.32);
+  text-transform: uppercase;
+}
+
+.mw-handle-host {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+}
+
+.mw-handle {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-block: 12px;
+  width: 46px;
+  min-height: 44px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.mw-handle-grip {
+  flex: 1 1 0;
+  width: 16px;
+  min-height: 40px;
+  max-height: 260px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, var(--mw-chrome-3), var(--mw-chrome-1) 35%, var(--mw-chrome-2) 70%, var(--mw-chrome-3));
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.6),
+    5px 6px 8px rgb(0 0 0 / 0.55);
+  transition: translate 0.15s ease;
+}
+
+.mw-handle:hover .mw-handle-grip {
+  translate: 2px 0;
+}
+
+.mw-handle:active .mw-handle-grip {
+  translate: 5px 0;
+}
+
+
+/* ---------- Control panel ------------------------------------------------- */
+
+.mw-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mw-vents {
+  flex: none;
+  height: 12px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(90deg, var(--mw-vent) 0 6px, transparent 6px 10px);
+  mask: linear-gradient(90deg, transparent, #000 8% 92%, transparent);
+}
+
+.mw-label {
+  color: var(--mw-ink-soft);
+  font: 700 12px/1 var(--mw-font);
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+/* The VFD display */
+.mw-display {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px 8px;
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(141 255 224 / 0.06), transparent 60%),
+    var(--mw-vfd-bg);
+  box-shadow:
+    inset 0 2px 6px rgb(0 0 0 / 0.9),
+    inset 0 0 0 1px rgb(255 255 255 / 0.05),
+    0 1px 0 var(--mw-key-hi),
+    0 0 26px -4px var(--mw-vfd-spill);
+  cursor: pointer;
+  direction: ltr;
+}
+
+.mw-segments {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60px;
+  overflow: visible;
+  transform: skewX(-6deg);
+}
+
+.mw-segments polygon,
+.mw-colon circle {
+  fill: var(--mw-vfd-off);
+  transition: fill 0.06s linear;
+}
+
+.mw-segments polygon.on,
+.mw-colon.on circle {
+  fill: var(--mw-vfd);
+  filter: drop-shadow(0 0 3px var(--mw-vfd-glow));
+}
+
+.mw-lamps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 6px;
+  font: 700 10px/1 var(--mw-font);
+  letter-spacing: 0.12em;
+}
+
+.mw-lamp {
+  color: rgb(141 255 224 / 0.16);
+}
+
+.mw-lamp.on {
+  color: var(--mw-vfd);
+  text-shadow: 0 0 5px var(--mw-vfd-glow);
+}
+
+.mw-display:is([data-mode="paused"], [data-mode="end"]) .mw-segments {
+  animation: mw-blink 1.1s steps(1, end) infinite;
+}
+
+.mw-display[data-mode="entry"] .mw-colon {
+  animation: mw-blink 0.8s steps(1, end) infinite;
+}
+
+.mw-display[data-mode="wait"] .mw-digit {
+  animation: mw-chase 0.8s steps(1, end) infinite;
+}
+
+.mw-display[data-mode="wait"] .mw-digit:nth-of-type(2) { animation-delay: 0.2s; }
+.mw-display[data-mode="wait"] .mw-digit:nth-of-type(3) { animation-delay: 0.4s; }
+.mw-display[data-mode="wait"] .mw-digit:nth-of-type(4) { animation-delay: 0.6s; }
+
+/* Keys: soft membrane buttons. With the lights off they are backlit. */
+.mw-key {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: var(--mw-key-h);
+  padding: 3px 6px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--mw-key), color-mix(in srgb, var(--mw-key), var(--mw-key-lo) 18%));
+  color: var(--mw-key-ink);
+  font: 700 19px/1 var(--mw-font);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px var(--mw-key-glow);
+  cursor: pointer;
+  user-select: none;
+  box-shadow:
+    inset 0 1px 0 var(--mw-key-hi),
+    0 2px 0 var(--mw-key-lo),
+    0 3px 6px -2px rgb(0 0 0 / 0.35);
+  transition: translate 0.06s ease, box-shadow 0.06s ease, background-color 0.2s ease;
+}
+
+.mw-key small {
+  display: block;
+  margin-top: 1px;
+  color: var(--mw-ink-soft);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: none;
+}
+
+.mw-key:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mw-key), #fff 7%), var(--mw-key));
+}
+
+.mw-key:active {
+  translate: 0 2px;
+  box-shadow:
+    inset 0 1px 0 var(--mw-key-hi),
+    0 0 0 var(--mw-key-lo),
+    0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+.mw-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mw-skip {
+  font-size: 16px;
+}
+
+.mw-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mw-preset {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.mw-preset[aria-pressed="true"] {
+  background: linear-gradient(180deg, var(--mw-key-on), color-mix(in srgb, var(--mw-key-on), var(--mw-key-lo) 25%));
+}
+
+.mw-preset[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mw-accent);
+  box-shadow: 0 0 6px var(--mw-accent);
+}
+
+/* ---------- POWER: a rotary knob (the volume slider) --------------------------- */
+
+.mw-power-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.mw-knob-wrap {
+  position: relative;
+  width: 66px;
+  height: 66px;
+}
+
+/* Scale ring: ticks over 270°, the lit arc follows the power level. */
+.mw-knob-scale {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 225deg, var(--mw-accent) calc(var(--mw-vol) * 270deg), transparent 0),
+    conic-gradient(from 225deg, var(--mw-scale-off) 270deg, transparent 0);
+  mask:
+    repeating-conic-gradient(from 225deg, #000 0 3deg, transparent 3deg 27deg),
+    radial-gradient(closest-side, transparent 80%, #000 82% 100%);
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+}
+
+.mw-knob {
+  position: absolute;
+  inset: 9px;
+  display: block;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mw-knob[data-dragging] {
+  cursor: grabbing;
+}
+
+.mw-knob[data-hidden] {
+  display: none;
+}
+
+.mw-knob-track,
+.mw-knob-fill {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.mw-knob-thumb {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 50%;
+}
+
+.mw-knob-cap {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 58%, rgb(0 0 0 / 0.2) 60%, transparent 62%),
+    repeating-conic-gradient(rgb(0 0 0 / 0.06) 0 4deg, transparent 4deg 8deg),
+    radial-gradient(circle at 35% 30%, var(--mw-chrome-1), var(--mw-chrome-2) 55%, var(--mw-chrome-3));
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.35),
+    0 4px 8px rgb(0 0 0 / 0.4),
+    inset 0 1px 1px rgb(255 255 255 / 0.6);
+  rotate: calc(var(--mw-vol) * 270deg - 135deg);
+  transition: rotate 0.12s ease-out;
+}
+
+/* pointer line */
+.mw-knob-cap::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 4px;
+  height: 13px;
+  translate: -50% 0;
+  border-radius: 2px;
+  background: var(--mw-accent);
+  box-shadow: 0 0 6px var(--mw-accent);
+}
+
+.mw-knob-thumb:focus-visible {
+  outline: 3px solid var(--mw-focus);
+  outline-offset: 4px;
+}
+
+.mw-power-side {
+  display: grid;
+  gap: 6px;
+  justify-items: stretch;
+}
+
+.mw-quiet {
+  font-size: 14px;
+  letter-spacing: 0.12em;
+}
+
+.mw-quiet:not([data-muted]) .mw-when-quiet,
+.mw-quiet[data-muted] .mw-when-loud {
+  display: none;
+}
+
+.mw-quiet[data-muted] {
+  background: linear-gradient(180deg, var(--mw-key-on), color-mix(in srgb, var(--mw-key-on), var(--mw-key-lo) 25%));
+}
+
+/* ---------- Smart keypad: tap to type, hold to jump --------------------------- */
+
+.mw-digit small {
+  margin-top: 0;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.mw-digit::before {
+  /* hold progress */
+  content: "";
+  position: absolute;
+  inset: auto 6px 3px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--mw-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  opacity: 0;
+}
+
+.mw-digit[data-holding]::before {
+  opacity: 1;
+  transform: scaleX(1);
+  transition: transform 0.55s linear, opacity 0.1s ease;
+}
+
+.mw-digit[data-typed] {
+  background: linear-gradient(180deg, var(--mw-key-on), color-mix(in srgb, var(--mw-key-on), var(--mw-key-lo) 25%));
+}
+
+.mw-digit[data-jumped] {
+  background: linear-gradient(180deg, var(--mw-key-on), color-mix(in srgb, var(--mw-key-on), var(--mw-key-lo) 25%));
+  box-shadow: 0 0 0 2px var(--mw-accent), 0 0 14px var(--mw-accent);
+}
+
+/* ---------- SERVE (fullscreen) and the door release bar ------------------------ */
+
+.mw-serve {
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+
+.mw-serve:not([data-fullscreen]) .mw-when-open,
+.mw-serve[data-fullscreen] .mw-when-closed {
+  display: none;
+}
+
+.mw-serve[data-availability="unsupported"] {
+  display: none;
+}
+
+.mw-release-host {
+  display: grid;
+}
+
+.mw-release {
+  min-height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--mw-chrome-1), var(--mw-chrome-2) 60%, var(--mw-chrome-3));
+  color: #24211d;
+  font: 700 13px/1 var(--mw-font);
+  letter-spacing: 0.24em;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    0 2px 0 rgb(0 0 0 / 0.35),
+    0 3px 6px -2px rgb(0 0 0 / 0.4);
+  transition: translate 0.06s ease, box-shadow 0.06s ease;
+}
+
+.mw-release:active,
+.mw-release[aria-pressed="true"] {
+  translate: 0 2px;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35), 0 0 0 transparent;
+}
+
+.mw-knob-label {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  translate: -50% 0;
+  color: var(--mw-ink-soft);
+  font: 700 10px/1 var(--mw-font);
+  letter-spacing: 0.18em;
+  pointer-events: none;
+}
+
+/* ---------- START / STOP ----------------------------------------------------- */
+
+.mw-go-row {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.mw-go-row > * {
+  display: grid;
+}
+
+.mw-big {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 50px;
+  border-radius: 11px;
+  color: #fff;
+  font: 700 21px/1 var(--mw-font);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.35);
+  transition: translate 0.06s ease, box-shadow 0.06s ease, filter 0.2s ease;
+}
+
+.mw-big small {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  opacity: 0.88;
+}
+
+.mw-big-start {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mw-go), #fff 14%), var(--mw-go));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 3px 0 var(--mw-go-lo), 0 5px 10px -3px rgb(0 0 0 / 0.4);
+}
+
+.mw-big-stop {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mw-stop), #fff 14%), var(--mw-stop));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 3px 0 var(--mw-stop-lo), 0 5px 10px -3px rgb(0 0 0 / 0.4);
+}
+
+.mw-big:hover {
+  filter: brightness(1.07);
+}
+
+.mw-big:active {
+  translate: 0 3px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25), 0 0 0 transparent;
+}
+
+.mw-big-start[data-armed] {
+  animation: mw-ready 2.4s ease-in-out infinite;
+}
+
+/* ---------- Error ---------------------------------------------------------- */
+
+.mw-error-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: rgb(0 0 0 / 0.75);
+}
+
+.mw-error-backdrop:not([data-open]) {
+  display: none;
+}
+
+.mw-error {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 20px;
+  margin: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  text-align: center;
+  cursor: default;
+}
+
+.mw-error:not([data-open]) {
+  display: none;
+}
+
+.mw-error-code {
+  color: var(--mw-vfd);
+  font: 700 46px/1 var(--mw-font);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 10px var(--mw-vfd-glow);
+}
+
+.mw-error-title {
+  font: 700 20px/1.2 var(--mw-font);
+  letter-spacing: 0.04em;
+}
+
+.mw-error-text {
+  max-width: 38ch;
+  color: rgb(255 255 255 / 0.85);
+  font: 500 16px/1.35 var(--mw-font);
+}
+
+.mw-error-close {
+  min-width: 120px;
+  margin-top: 6px;
+  font-size: 16px;
+}
+
+/* ---------- Fullscreen: keep the oven, let the window fill ---------------- */
+
+.mw:fullscreen {
+  display: grid;
+  place-items: center;
+  padding: 2vmin;
+  background: radial-gradient(ellipse at 50% 30%, #2b2f33, #0d0e10 70%);
+}
+
+.mw:fullscreen .mw-body {
+  width: 100%;
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.mw:fullscreen .mw-door {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.mw:fullscreen .mw-window {
+  min-height: 0;
+}
+
+.mw:fullscreen .mw-window::before {
+  display: none;
+}
+
+.mw:fullscreen .mw-panel {
+  justify-content: center;
+}
+
+.mw:fullscreen .mw-go-row {
+  margin-top: 0;
+}
+
+/* ---------- Narrow players ------------------------------------------------- */
+
+/* Wide players: a compact panel no taller than the picture, so the window is exactly
+   the video's shape (no dark bands above and below). */
+@container mw (width >= 640px) {
+  .mw-body {
+    grid-template-columns: minmax(0, 1fr) clamp(214px, 28cqi, 270px);
+  }
+
+  .mw-panel {
+    gap: 6px;
+    --mw-key-h: 30px;
+  }
+
+  .mw-vents {
+    display: none;
+  }
+
+  .mw-display {
+    padding: 7px 10px 6px;
+    gap: 3px;
+  }
+
+  .mw-segments {
+    max-height: 40px;
+  }
+
+  .mw-lamps {
+    font-size: 9px;
+  }
+
+  .mw-key {
+    font-size: 17px;
+    padding: 2px 4px;
+  }
+
+  .mw-key small {
+    font-size: 9px;
+  }
+
+  .mw-preset {
+    font-size: 12px;
+  }
+
+  /* Keypad: 4 columns x 3 rows. −10, +10 and 0 sit in the right-hand column. */
+  .mw-keypad {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .mw-keypad > :nth-child(10) { grid-area: 1 / 4; } /* −10 */
+  .mw-keypad > :nth-child(12) { grid-area: 2 / 4; } /* +10 */
+  .mw-keypad > :nth-child(11) { grid-area: 3 / 4; } /* 0 */
+
+  .mw-knob-wrap {
+    width: 54px;
+    height: 54px;
+  }
+
+  .mw-knob {
+    inset: 7px;
+  }
+
+  .mw-knob-cap::after {
+    top: 4px;
+    height: 10px;
+  }
+
+  .mw-power-row {
+    gap: 10px;
+  }
+
+  .mw-power-side {
+    gap: 5px;
+  }
+
+  .mw-quiet,
+  .mw-serve {
+    font-size: 13px;
+    min-height: 26px;
+  }
+
+  .mw-big {
+    min-height: 40px;
+    font-size: 18px;
+  }
+
+  .mw-big small {
+    font-size: 9px;
+  }
+
+  .mw-release {
+    min-height: 26px;
+    font-size: 12px;
+  }
+}
+
+@media (pointer: coarse) {
+  @container mw (width >= 640px) {
+    .mw-panel {
+      --mw-key-h: 40px;
+    }
+  }
+}
+
+@container mw (width >= 700px) {
+  .mw-badge {
+    display: flex;
+  }
+
+  .mw-rail-row {
+    padding-inline-start: 150px;
+  }
+}
+
+@container mw (width < 640px) {
+  .mw-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mw-bay {
+    --mw-handle-w: 44px;
+  }
+
+  .mw-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "display keypad"
+      "presets keypad"
+      "power   keypad"
+      "go      release";
+    align-content: start;
+    gap: 8px 12px;
+  }
+
+  .mw-vents {
+    display: none;
+  }
+
+  .mw-display { grid-area: display; }
+  .mw-presets { grid-area: presets; }
+  .mw-power-row { grid-area: power; }
+  .mw-go-row { grid-area: go; margin-top: 0; }
+  .mw-keypad { grid-area: keypad; }
+  .mw-release-host { grid-area: release; }
+
+  .mw-panel {
+    --mw-key-h: 44px;
+  }
+
+  .mw:fullscreen .mw-panel {
+    display: none;
+  }
+}
+
+@container mw (width < 420px) {
+  .mw-body {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .mw-bay {
+    --mw-door-pad: 8px;
+  }
+
+  .mw-panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "display"
+      "presets"
+      "keypad"
+      "power"
+      "go"
+      "release";
+  }
+
+  .mw-rail-row {
+    padding-inline: 8px;
+  }
+}
+
+/* ---------- Motion --------------------------------------------------------- */
+
+@keyframes mw-spin {
+  to { rotate: 360deg; }
+}
+
+@keyframes mw-blink {
+  50% { opacity: 0.18; }
+}
+
+@keyframes mw-chase {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+@keyframes mw-ready {
+  0%, 100% { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 3px 0 var(--mw-go-lo), 0 5px 10px -3px rgb(0 0 0 / 0.4); }
+  50% { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 3px 0 var(--mw-go-lo), 0 0 18px 2px color-mix(in srgb, var(--mw-go), transparent 45%); }
+}
+
+@keyframes mw-pop {
+  0% { transform: translate(0, 0) scale(0.2) rotate(0deg); opacity: 0; }
+  8% { opacity: 1; transform: translate(0, -10%) scale(1.15) rotate(20deg); }
+  45% { transform: translate(calc(var(--d) * 0.6), calc(var(--h) * -1)) scale(1) rotate(calc(var(--r) * 0.6)); }
+  85% { opacity: 1; transform: translate(var(--d), 0) scale(1) rotate(var(--r)); }
+  100% { opacity: 0; transform: translate(var(--d), 0) scale(0.95) rotate(var(--r)); }
+}
+
+@keyframes mw-steam {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  25% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(14px, -160px) scale(2.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw *,
+  .mw *::before,
+  .mw *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .mw-leaf {
+    transition: none !important;
+  }
+
+  /* No swinging door: it stays shut and the window fogs. */
+  .mw[data-mw-state="ended"] .mw-door {
+    transform: none;
+  }
+
+  .mw-display:is([data-mode="paused"], [data-mode="end"]) .mw-segments {
+    opacity: 0.7;
+  }
+}
+
+/* ---------- Forced colors ---------------------------------------------------- */
+
+@media (forced-colors: active) {
+  .mw-segments polygon.on,
+  .mw-colon.on circle {
+    fill: CanvasText;
+  }
+
+  .mw-segments polygon,
+  .mw-colon circle {
+    fill: Canvas;
+  }
+
+  .mw-key,
+  .mw-big {
+    border: 2px solid ButtonText;
+  }
+
+  .mw-rail-fill {
+    background: Highlight;
+  }
+
+  .mw-plate,
+  .mw-knob-cap {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+}

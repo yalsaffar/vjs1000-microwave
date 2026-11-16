@@ -1,0 +1,141 @@
+/* The 3D camera rig. Geometry variables (--M, --H, --D, --world-y, --pivot-y) and the
+   camera angles (--cam-rx, --cam-ry, --cam-z) are written by camera.ts. */
+
+.k3 {
+  position: relative;
+  min-height: 100svh;
+  overflow-x: clip;
+}
+
+.k3-viewport {
+  position: relative;
+  height: var(--k3-vh, 100svh);
+  overflow: hidden;
+  perspective: var(--k3-persp, 1700px);
+  perspective-origin: 50% var(--pivot-y, 50%);
+}
+
+.k3-camera {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform-origin: 50% var(--pivot-y, 50%) calc(var(--D, 400px) * -0.5);
+  transform:
+    translate3d(0, var(--cam-y, 0px), var(--cam-z, 0px))
+    rotateX(var(--cam-rx, 0deg))
+    rotateY(var(--cam-ry, 0deg));
+  will-change: transform;
+}
+
+.k3-world {
+  position: absolute;
+  left: 50%;
+  top: var(--world-y, 70%);
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+.k3-room {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+/* HUD: the step-back button */
+.k3-hud {
+  position: fixed;
+  inset-inline-start: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  translate: -50% 0;
+  z-index: 30;
+  display: flex;
+  gap: 8px;
+}
+
+.k3-view {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: light-dark(rgb(255 252 244 / 0.86), rgb(16 18 26 / 0.8));
+  color: light-dark(#2b261f, #f1e7d6);
+  font: 700 15px/1 "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 6px 20px -6px rgb(0 0 0 / 0.45), inset 0 0 0 1px light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.12));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.k3-view:hover {
+  background: light-dark(#fffaf0, rgb(28 30 40 / 0.9));
+}
+
+.k3-view:focus-visible {
+  outline: 3px solid light-dark(#1a5cff, #8db8ff);
+  outline-offset: 3px;
+}
+
+.k3-lights[aria-pressed="false"] {
+  background: rgb(16 18 26 / 0.85);
+  color: #ffd9a0;
+}
+
+.k3-view[aria-pressed="false"] .k3-view-out,
+.k3-view[aria-pressed="true"] .k3-view-in {
+  display: none;
+}
+
+/* The HUD lights button is for phones, where the wall switch is out of view. */
+.k3-lights {
+  display: none;
+}
+
+@media (max-width: 699px) {
+  .k3-hud {
+    position: absolute;
+    top: 14px;
+    bottom: auto;
+  }
+
+  .k3-lights {
+    display: block;
+  }
+}
+
+/* Stepped back: the recipe card gets out of the way. */
+.k-card {
+  transition: opacity 0.4s ease, translate 0.4s ease;
+}
+
+.k3[data-step-back] .k-card {
+  opacity: 0;
+  translate: 0 -12px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-card {
+    transition: none;
+  }
+}
+
+/* The camera/world boxes are invisible planes in 3D: let clicks through to the
+   things that are interactive (the wall switch and the microwave). */
+.k3-camera,
+.k3-world,
+.k3-room,
+.k3-mw {
+  pointer-events: none;
+}
+
+.k3-room .k-switch,
+.k3-mw .k-stage {
+  pointer-events: auto;
+}

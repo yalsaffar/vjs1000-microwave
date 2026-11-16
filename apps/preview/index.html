@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en" data-lights="on">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>VJS·1000 Microwave · Video.js v10 skin</title>
+    <meta name="description" content="A countertop microwave video player in a 3D kitchen: a Video.js v10 skin. Type a time, press START, flip the kitchen lights." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='4' y='12' width='56' height='40' rx='6' fill='%23ece2cb'/%3E%3Crect x='9' y='17' width='32' height='30' rx='3' fill='%231e1c1a'/%3E%3Crect x='45' y='18' width='11' height='7' rx='1.5' fill='%23060a09'/%3E%3Ccircle cx='50.5' cy='36' r='5' fill='%23b9b3a6'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main class="k3" aria-labelledby="k-title">
+      <h1 id="k-title" class="k-sr">VJS·1000: a microwave video player for Video.js v10</h1>
+
+      <!-- 3D scene. Camera transform is driven by camera.ts through CSS variables. -->
+      <div class="k3-viewport">
+        <div class="k3-camera">
+          <div class="k3-world">
+            <!-- ROOM: walls, counter, cabinets, window, props, lights, switch (room3d.css) -->
+            <div class="k3-room">
+              <!-- Back wall: plaster, tiles, clock, print, outlet, the light switch -->
+              <div class="k3-s k3-wall">
+                <i class="k3-tiles" aria-hidden="true"></i>
+                <i class="k3-clock" aria-hidden="true"><b class="k3-clock-h"></b><b class="k3-clock-m"></b><b class="k3-clock-s"></b></i>
+                <i class="k3-poster" aria-hidden="true"><b class="k3-poster-art"></b><b class="k3-poster-t">Microwave Cooking</b><b class="k3-poster-s">Fast · Clean · Electric</b></i>
+                <i class="k3-outlet" aria-hidden="true"></i>
+                <div class="k3-switch-wrap">
+                  <button type="button" class="k-switch" role="switch" aria-checked="true" aria-label="Kitchen lights" aria-describedby="k-switch-hint">
+                    <span class="k-switch-plate" aria-hidden="true">
+                      <span class="k-switch-screw"></span>
+                      <span class="k-switch-rocker"><span class="k-switch-led"></span></span>
+                      <span class="k-switch-screw"></span>
+                    </span>
+                  </button>
+                  <span id="k-switch-hint" class="k-switch-hint" aria-hidden="true">lights</span>
+                </div>
+              </div>
+              <i class="k3-s k3-cut k3-wall-top" aria-hidden="true"></i>
+
+              <!-- Ceiling with a flush-mount light, its cut edge, and the cornice -->
+              <div class="k3-s k3-ceil" aria-hidden="true"><i class="k3-flush"></i></div>
+              <i class="k3-s k3-cut k3-ceil-cut" aria-hidden="true"></i>
+              <i class="k3-s k3-crown" aria-hidden="true"></i>
+
+              <!-- Left side wall with a deep-set window (a 3D group) -->
+              <div class="k3-lw" aria-hidden="true">
+                <div class="k3-s k3-lw-in"><i class="k3-tiles k3-tiles-side"></i></div>
+                <div class="k3-s k3-lw-out"><i class="k3-win-out"></i></div>
+                <i class="k3-s k3-cut k3-lw-edge"></i>
+                <i class="k3-s k3-cut k3-lw-top"></i>
+                <i class="k3-s k3-crown k3-crown-side"></i>
+                <i class="k3-pane"><b class="k3-sun"></b><b class="k3-moon"></b><b class="k3-stars"></b><b class="k3-cloud"></b><b class="k3-cloud k3-c2"></b><b class="k3-far"></b><b class="k3-trees"></b><b class="k3-near"></b></i>
+                <i class="k3-wframe"></i>
+                <i class="k3-s k3-rev k3-rev-top"></i>
+                <i class="k3-s k3-rev k3-rev-back"></i>
+                <i class="k3-s k3-rev k3-rev-front"></i>
+                <i class="k3-s k3-sill"></i>
+                <i class="k3-s k3-sill-front"></i>
+                <i class="k3-s k3-sill-end"></i>
+                <i class="k3-s k3-sill-under"></i>
+                <i class="k3-rod"></i>
+                <i class="k3-curtain k3-curtain-l"></i>
+                <i class="k3-curtain k3-curtain-r"></i>
+                <div class="k3-bb k3-plant">
+                  <svg viewBox="0 0 120 110"><path d="M60 70C40 50 22 52 8 40c22-6 40 4 50 24Z" fill="#4f8a55"/><path d="M60 70c18-24 36-22 54-40-22 0-42 12-52 34Z" fill="#3f7a47"/><path d="M60 70c-4-30 4-48-2-68 16 20 12 44 4 66Z" fill="#5a9a5e"/><path d="M60 70C46 58 30 70 14 70c18-12 34-12 44-2Z" fill="#6aa86b"/><path d="M60 70c16-8 32 2 48-4-16-10-34-8-46 2Z" fill="#4c8650"/><path d="M38 70h44l-6 38H44Z" fill="#c4683f"/><path d="M38 70h22l-2 38H44Z" fill="#d98a5c"/><path d="M36 66h48v10H36Z" fill="#d97b4f"/></svg>
+                </div>
+                <i class="k3-beam" style="--f: 0.3"><b></b><b></b><b></b></i>
+                <i class="k3-beam" style="--f: 0.72"><b></b><b></b><b></b></i>
+              </div>
+
+              <!-- Right side wall: copper pans -->
+              <div class="k3-rw" aria-hidden="true">
+                <div class="k3-s k3-rw-in">
+                  <i class="k3-tiles k3-tiles-side"></i>
+                  <svg class="k3-pans" viewBox="0 0 240 200"><path d="M6 8H234" stroke="#9a7a3a" stroke-width="5" stroke-linecap="round"/><g fill="none" stroke="#5a4320" stroke-width="3"><path d="M50 8v14M128 8v14M196 8v14"/></g><rect x="44" y="20" width="12" height="66" rx="6" fill="#3a2b1c"/><circle cx="50" cy="128" r="46" fill="#b8643a"/><circle cx="50" cy="128" r="38" fill="#d9844f"/><ellipse cx="38" cy="112" rx="14" ry="20" fill="#f3b07c" opacity=".55"/><rect x="122" y="20" width="12" height="54" rx="6" fill="#3a2b1c"/><circle cx="128" cy="104" r="34" fill="#a85a33"/><circle cx="128" cy="104" r="27" fill="#cf7a46"/><ellipse cx="119" cy="93" rx="9" ry="13" fill="#f3b07c" opacity=".5"/><path d="M196 20c-6 30-6 60 0 90 6-30 6-60 0-90Z" fill="#c9c3b6"/><ellipse cx="196" cy="138" rx="20" ry="30" fill="#d8d2c4"/><ellipse cx="190" cy="128" rx="7" ry="14" fill="#fff" opacity=".6"/></svg>
+                </div>
+                <i class="k3-s k3-cut k3-rw-edge"></i>
+                <i class="k3-s k3-cut k3-rw-top"></i>
+                <i class="k3-s k3-crown k3-crown-side"></i>
+              </div>
+
+              <!-- Upper cabinets: real boxes -->
+              <div class="k3-cab k3-cab-l" aria-hidden="true">
+                <div class="k3-s k3-cab-front"><i class="k3-door"></i><i class="k3-door"></i></div>
+                <i class="k3-s k3-cab-bot"></i>
+                <i class="k3-s k3-cab-side"></i>
+              </div>
+              <div class="k3-cab k3-cab-r" aria-hidden="true">
+                <div class="k3-s k3-cab-front"><i class="k3-door k3-glass"></i><i class="k3-door k3-glass"></i></div>
+                <i class="k3-s k3-cab-bot"></i>
+                <i class="k3-s k3-cab-side"></i>
+                <i class="k3-s k3-cab-side k3-cab-side-o"></i>
+              </div>
+
+              <!-- Corner open shelves: boxed boards on iron brackets -->
+              <div class="k3-wsh" style="--sy: -1.62" aria-hidden="true">
+                <i class="k3-s k3-wsh-top"></i>
+                <i class="k3-s k3-wsh-front"></i>
+                <i class="k3-s k3-wsh-bot"></i>
+                <i class="k3-s k3-wsh-end"></i>
+                <i class="k3-brk" style="--bx: calc(var(--m) * 0.06)"></i>
+                <i class="k3-brk" style="--bx: calc(var(--m) * 0.32)"></i>
+                <div class="k3-wi" style="--lx: 0.1; --w: 0.16">
+                  <svg viewBox="0 0 120 100"><g fill="#f4efe4" stroke="#cfc6b3" stroke-width="2"><rect x="6" y="80" width="108" height="10" rx="5"/><rect x="8" y="68" width="104" height="10" rx="5"/><rect x="10" y="56" width="100" height="10" rx="5"/><rect x="12" y="44" width="96" height="10" rx="5"/></g><path d="M12 49h96M10 61h100M8 73h104M6 85h108" stroke="#2f5d50" stroke-width="2"/><path d="M30 44c0-26 60-26 60 0Z" fill="#c94f3a"/><path d="M38 44c0-16 44-16 44 0Z" fill="#e06a50"/><circle cx="60" cy="18" r="5" fill="#2e2b28"/></svg>
+                </div>
+                <div class="k3-wi" style="--lx: 0.28; --w: 0.16">
+                  <svg viewBox="0 0 120 100"><path d="M22 40c0-22 76-22 76 0l4 46c0 10-84 10-84 0Z" fill="#2f5d50"/><path d="M26 44c0-14 68-14 68 0" fill="none" stroke="#4b8a76" stroke-width="5"/><path d="M98 52c20 0 22 24 4 30" fill="none" stroke="#2f5d50" stroke-width="7"/><path d="M22 56 4 40l-2 6 18 22Z" fill="#2f5d50"/><rect x="50" y="14" width="20" height="10" rx="4" fill="#d9ad4f"/><path d="M36 60c2 14 4 20 8 24" stroke="#fff" stroke-width="5" opacity=".25" fill="none" stroke-linecap="round"/></svg>
+                </div>
+              </div>
+              <div class="k3-wsh" style="--sy: -1.3" aria-hidden="true">
+                <i class="k3-s k3-wsh-top"></i>
+                <i class="k3-s k3-wsh-front"></i>
+                <i class="k3-s k3-wsh-bot"></i>
+                <i class="k3-s k3-wsh-end"></i>
+                <i class="k3-brk" style="--bx: calc(var(--m) * 0.06)"></i>
+                <i class="k3-brk" style="--bx: calc(var(--m) * 0.32)"></i>
+                <div class="k3-wi" style="--lx: 0.11; --w: 0.18">
+                  <svg viewBox="0 0 130 100"><rect x="6" y="30" width="34" height="62" rx="3" fill="#c9452c"/><rect x="6" y="24" width="34" height="9" rx="2" fill="#8f2d1c"/><rect x="10" y="48" width="26" height="22" fill="#f4e6c4"/><rect x="46" y="40" width="36" height="52" rx="3" fill="#e0b04a"/><rect x="46" y="34" width="36" height="9" rx="2" fill="#a77d22"/><rect x="50" y="56" width="28" height="16" fill="#2f5d50"/><rect x="88" y="20" width="34" height="72" rx="3" fill="#3d5a80"/><rect x="88" y="14" width="34" height="9" rx="2" fill="#263a55"/><circle cx="105" cy="58" r="10" fill="#f4e6c4"/></svg>
+                </div>
+                <div class="k3-wi" style="--lx: 0.29; --w: 0.15">
+                  <svg viewBox="0 0 120 90"><path d="M10 34h40l-4 50H14Z" fill="#f6efe2"/><path d="M50 44c14 0 14 24 0 24" fill="none" stroke="#f6efe2" stroke-width="6"/><path d="M12 50h37" stroke="#2f5d50" stroke-width="5"/><path d="M64 46h40l-3 38H67Z" fill="#e7c14f"/><path d="M104 54c12 0 12 20 0 20" fill="none" stroke="#e7c14f" stroke-width="6"/><path d="M66 58h37" stroke="#fff" stroke-width="3" opacity=".6"/></svg>
+                </div>
+              </div>
+
+              <!-- Open shelf with jars -->
+              <div class="k3-shelf" aria-hidden="true">
+                <i class="k3-s k3-shelf-top"></i>
+                <i class="k3-s k3-shelf-front"></i>
+                <div class="k3-jars">
+                  <svg viewBox="0 0 220 70" preserveAspectRatio="xMidYMax meet"><rect x="8" y="18" width="22" height="46" rx="5" fill="#f4efe6" opacity=".92"/><rect x="8" y="11" width="22" height="9" rx="2" fill="#2f3a35"/><rect x="11" y="34" width="16" height="26" rx="2" fill="#c9452c"/><rect x="36" y="24" width="22" height="40" rx="5" fill="#f4efe6" opacity=".92"/><rect x="36" y="17" width="22" height="9" rx="2" fill="#2f3a35"/><rect x="39" y="40" width="16" height="20" rx="2" fill="#d9a63b"/><rect x="64" y="20" width="22" height="44" rx="5" fill="#f4efe6" opacity=".92"/><rect x="64" y="13" width="22" height="9" rx="2" fill="#2f3a35"/><rect x="67" y="38" width="16" height="22" rx="2" fill="#6c8f3f"/><path d="M12 22v36M40 28v28M68 24v30" stroke="#fff" stroke-width="2.5" opacity=".7"/><rect x="98" y="8" width="15" height="56" fill="#3d5a80"/><rect x="113" y="12" width="13" height="52" fill="#e0b04a"/><rect x="126" y="4" width="17" height="60" fill="#b8473a"/><rect x="143" y="14" width="11" height="50" fill="#e8e1d2"/><path d="M101 18h9M129 14h11" stroke="#f4e6c4" stroke-width="2"/><path d="M158 64 170 16l12 2-12 46Z" fill="#577a6a"/><circle cx="200" cy="48" r="15" fill="#e7c14f"/><circle cx="195" cy="43" r="4" fill="#fff" opacity=".4"/><path d="M200 33q4-8 10-8" stroke="#5a7a3a" stroke-width="3" fill="none"/></svg>
+                </div>
+              </div>
+
+              <!-- Pendant lamp: canopy, cord, a faceted enamel dome, bulb, light cone -->
+              <div class="k3-pend" aria-hidden="true">
+                <i class="k3-canopy"></i>
+                <i class="k3-canband"></i>
+                <i class="k3-canband" style="--r: 90deg"></i>
+                <i class="k3-cord"></i>
+                <div class="k3-shade">
+                  <i class="k3-bloom"></i>
+                  <i class="k3-collar"></i>
+                  <i class="k3-collar" style="--r: 90deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 0deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 45deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 90deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 135deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 180deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 225deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 270deg"></i>
+                  <i class="k3-fa k3-fa-a" style="--a: 315deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 0deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 45deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 90deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 135deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 180deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 225deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 270deg"></i>
+                  <i class="k3-fa k3-fa-b" style="--a: 315deg"></i>
+                  <i class="k3-mouth"></i>
+                  <i class="k3-bulb"></i>
+                  <i class="k3-cone"></i>
+                  <i class="k3-cone" style="--r: 60deg"></i>
+                  <i class="k3-cone" style="--r: 120deg"></i>
+                </div>
+              </div>
+
+              <!-- Counter: marble top, cove, edge, lower cabinets, toe-kick -->
+              <div class="k3-s k3-ctop" aria-hidden="true">
+                <i class="k3-cs" style="--x: -1.45; --z: -0.3; --w: 0.16"></i>
+                <i class="k3-cs" style="--x: -1.12; --z: 0.02; --w: 0.3"></i>
+                <i class="k3-cs" style="--x: -0.78; --z: 0.1; --wall: 1; --w: 0.2"></i>
+                <i class="k3-cs" style="--x: 0.82; --z: 0.1; --wall: 1; --w: 0.26"></i>
+                <i class="k3-cs" style="--x: 1.25; --z: 0.05; --wall: 1; --w: 0.2"></i>
+                <i class="k3-cs" style="--x: 1.05; --z: 0.15; --w: 0.32"></i>
+                <i class="k3-cs" style="--x: 1.45; --z: 0.22; --w: 0.12"></i>
+                <i class="k3-sunpatch"></i>
+                <i class="k3-pool"></i>
+              </div>
+              <i class="k3-s k3-cove" aria-hidden="true"></i>
+              <i class="k3-s k3-cedge" aria-hidden="true"></i>
+              <div class="k3-s k3-base" aria-hidden="true">
+                <i class="k3-drw"></i><i class="k3-drw"></i><i class="k3-drw"></i><i class="k3-drw"></i><i class="k3-drw"></i><i class="k3-drw"></i><i class="k3-drw"></i>
+                <i class="k3-dr"></i><i class="k3-dr"></i><i class="k3-dr"></i><i class="k3-dr"></i><i class="k3-dr"></i><i class="k3-dr"></i><i class="k3-dr"></i>
+                <i class="k3-towel"></i>
+              </div>
+              <i class="k3-s k3-toe" aria-hidden="true"></i>
+
+              <!-- Floor: cement tiles, a runner, and the slab's cut edges -->
+              <i class="k3-s k3-floor" aria-hidden="true"></i>
+              <i class="k3-s k3-rug" aria-hidden="true"></i>
+              <i class="k3-s k3-cut k3-floor-front" aria-hidden="true"></i>
+              <i class="k3-s k3-cut k3-floor-l" aria-hidden="true"></i>
+              <i class="k3-s k3-cut k3-floor-r" aria-hidden="true"></i>
+
+              <!-- Counter-top props: billboards at their foot points -->
+              <div class="k3-bb k3-prop" style="--x: -1.45; --z: -0.3; --w: 0.16" aria-hidden="true">
+                <svg viewBox="0 0 90 170"><path d="M30 70 22 4l8-1 8 67Z" fill="#c8955c"/><ellipse cx="26" cy="8" rx="9" ry="13" fill="#c8955c"/><path d="m46 70 4-56h6l-2 56Z" fill="#a8743e"/><rect x="45" y="6" width="17" height="14" rx="4" fill="#3c3a37"/><path d="m58 70 12-50 6 2-10 48Z" fill="#d8a56a"/><path d="m66 10 14 4-6 14-12-6z" fill="#8f9aa0"/><path d="M14 70h62l-6 96H20Z" fill="#e9e0cf"/><path d="M14 70h22l-4 96H20Z" fill="#f6f0e4"/><path d="M14 70h62l-1 12H15Z" fill="#d6cbb6"/><path d="M24 110h42" stroke="#2f5d50" stroke-width="5"/><path d="M26 124h38" stroke="#2f5d50" stroke-width="2"/></svg>
+              </div>
+              <div class="k3-bb k3-prop" style="--x: -1.12; --z: 0.02; --w: 0.3" aria-hidden="true">
+                <svg viewBox="0 0 200 170"><path d="M40 78c0-38 120-38 120 0l10 82c0 12-140 12-140 0Z" fill="#7cc4b0"/><path d="M40 78c0-38 120-38 120 0l2 12c-42-8-82-8-124 0Z" fill="#8fd2be"/><path d="M60 70c4-24 76-24 80 0" fill="none" stroke="#5aa894" stroke-width="3"/><path d="M58 52c0-44 84-44 84 0" fill="none" stroke="#2e2b28" stroke-width="12" stroke-linecap="round"/><rect x="88" y="34" width="24" height="12" rx="5" fill="#2e2b28"/><path d="m160 96 34-24 4 8-30 36Z" fill="#7cc4b0"/><path d="M132 92c10 30 12 50 12 64" stroke="#4f9884" stroke-width="10" opacity=".45" fill="none" stroke-linecap="round"/><path d="M52 100c2 30 8 50 14 58" stroke="#fff" stroke-width="8" opacity=".38" stroke-linecap="round" fill="none"/><rect x="30" y="156" width="140" height="10" rx="5" fill="#2e2b28"/></svg>
+              </div>
+              <div class="k3-bb k3-prop" style="--x: -0.78; --z: 0.1; --wall: 1; --w: 0.2; --tilt: 6deg" aria-hidden="true">
+                <svg viewBox="0 0 120 130"><path d="M18 126 38 30h44l20 96" fill="none" stroke="#8a5a2e" stroke-width="7" stroke-linejoin="round"/><path d="M6 34c18-8 36-8 54 2 18-10 36-10 54-2v62c-18-8-36-8-54 2-18-10-36-10-54-2Z" fill="#fbf6e8"/><path d="M60 36v62" stroke="#d6cbb6" stroke-width="2"/><g stroke="#2a2620" stroke-width="2" stroke-linecap="round" opacity=".65"><path d="M14 46c10-3 26-3 38 0M14 56h34M14 64h36M14 72h28"/><path d="M68 46c10-3 26-3 38 0M68 56h30M68 64h34"/></g><circle cx="88" cy="78" r="8" fill="#c94f3a"/><path d="M2 96h116v8H2Z" fill="#a8743e"/></svg>
+              </div>
+              <div class="k3-bb k3-prop" style="--x: 0.82; --z: 0.1; --wall: 1; --w: 0.26" aria-hidden="true">
+                <svg viewBox="0 0 160 120"><path d="M40 26 96 4" stroke="#2e2b28" stroke-width="3" stroke-linecap="round"/><rect x="6" y="24" width="148" height="90" rx="16" fill="#c94f3a"/><rect x="6" y="24" width="148" height="20" rx="10" fill="#e06a50"/><rect x="16" y="40" width="80" height="62" rx="8" fill="#ece2cb"/><g stroke="#b8a888" stroke-width="3"><path d="M24 52h64M24 62h64M24 72h64M24 82h64M24 92h64"/></g><rect x="104" y="42" width="40" height="18" rx="3" fill="#2e2b28"/><rect x="108" y="46" width="32" height="10" rx="2" fill="#ffcf7a"/><path d="M122 46v10" stroke="#c94f3a" stroke-width="2"/><circle cx="114" cy="84" r="10" fill="#ece2cb"/><circle cx="138" cy="84" r="10" fill="#ece2cb"/><circle cx="114" cy="84" r="3" fill="#8a7a64"/><circle cx="138" cy="84" r="3" fill="#8a7a64"/><rect x="14" y="110" width="20" height="8" rx="2" fill="#2e2b28"/><rect x="126" y="110" width="20" height="8" rx="2" fill="#2e2b28"/></svg>
+              </div>
+              <div class="k3-bb k3-prop" style="--x: 1.25; --z: 0.05; --wall: 1; --w: 0.2; --tilt: 9deg" aria-hidden="true">
+                <svg viewBox="0 0 120 220"><path d="M60 4a14 14 0 0 1 14 14v6H46v-6A14 14 0 0 1 60 4Z" fill="#b98049"/><rect x="10" y="20" width="100" height="196" rx="18" fill="#c58f58"/><path d="M24 30c8 60-2 120 6 180M52 26c6 70-4 120 4 186M84 28c-6 60 6 120-2 184" stroke="#9a6634" stroke-width="2" fill="none" opacity=".55"/><path d="M14 40c0-14 8-20 20-20" stroke="#e8b47c" stroke-width="4" fill="none" opacity=".7"/><circle cx="60" cy="44" r="9" fill="#2a2420" opacity=".6"/></svg>
+              </div>
+              <div class="k3-bb k3-prop" style="--x: 1.05; --z: 0.15; --w: 0.32" aria-hidden="true">
+                <svg viewBox="0 0 220 124"><circle cx="72" cy="58" r="30" fill="#f2c94c"/><circle cx="62" cy="48" r="8" fill="#fff" opacity=".35"/><circle cx="122" cy="46" r="32" fill="#e8913a"/><circle cx="112" cy="36" r="8" fill="#fff" opacity=".3"/><circle cx="160" cy="64" r="26" fill="#c94f3a"/><path d="M122 14q6-10 16-8" stroke="#5a7a3a" stroke-width="4" fill="none"/><path d="M138 8q12-6 18 4-10 4-18-4Z" fill="#6c8f3f"/><path d="M24 70h172c-4 34-36 52-86 52S28 104 24 70Z" fill="#2f5d50"/><path d="M24 70h172l-3 12H27Z" fill="#3d7464"/><path d="M44 92c14 18 40 22 66 22" stroke="#6aa08e" stroke-width="5" fill="none" opacity=".6" stroke-linecap="round"/></svg>
+              </div>
+              <div class="k3-bb k3-prop k3-mug" style="--x: 1.45; --z: 0.22; --w: 0.12" aria-hidden="true">
+                <svg viewBox="0 0 90 170"><g class="k3-steam" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"><path d="M30 96c-10-12 8-22-2-36s6-24-2-38"/><path d="M46 98c10-12-6-22 4-36s-6-22 2-36"/></g><path d="M14 102h48v54c0 9-48 9-48 0Z" fill="#f6efe2"/><path d="M62 114c20 0 20 30 0 30" stroke="#f6efe2" stroke-width="8" fill="none"/><path d="M14 120h48" stroke="#c63a2d" stroke-width="6"/><ellipse cx="38" cy="102" rx="24" ry="4" fill="#5b3a22"/><path d="M20 108v40" stroke="#fff" stroke-width="4" opacity=".6"/></svg>
+              </div>
+            </div>
+
+            <!-- The microwave: 3D casing around the real player (mw-box.css) -->
+            <div class="k3-mw">
+              <div class="k3-mw-casing" aria-hidden="true">
+                <span class="k3-mw-face k3-mw-top"></span>
+                <span class="k3-mw-face k3-mw-left"></span>
+                <span class="k3-mw-face k3-mw-right"></span>
+                <span class="k3-mw-face k3-mw-back"></span>
+                <span class="k3-mw-foot" style="--fx: 0.08; --fz: 0.12"></span>
+                <span class="k3-mw-foot" style="--fx: 0.92; --fz: 0.12"></span>
+                <span class="k3-mw-foot" style="--fx: 0.08; --fz: 0.88"></span>
+                <span class="k3-mw-foot" style="--fx: 0.92; --fz: 0.88"></span>
+                <span class="k3-mw-shadow"></span>
+              </div>
+              <div class="k-stage" id="k-stage"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Screen-space HUD -->
+      <div class="k3-hud">
+        <button type="button" class="k3-view k3-lights" aria-pressed="true" aria-label="Kitchen lights">💡 Lights</button>
+        <button type="button" class="k3-view k3-step" aria-pressed="false">
+          <span class="k3-view-in">Step back ↗</span><span class="k3-view-out">Back to the microwave ↘</span>
+        </button>
+      </div>
+
+      <!-- ROOM-HUD: recipe card lives here (room3d.css styles it) -->
+      <aside class="k-card" aria-labelledby="k-card-title">
+        <h2 id="k-card-title">VJS·1000 <span>quick guide</span></h2>
+        <ol>
+          <li><b>START</b> to play. Press again: <b>+30 sec</b>.</li>
+          <li>Type <b>1 · 3 · 0</b>, then <b>START</b>: jumps to 1:30. <b>Hold</b> a number: jump to 10–90%.</li>
+          <li><b>STOP</b> pauses. Again: back to the start.</li>
+          <li><b>DEFROST</b> ½× · <b>POPCORN</b> 2× (listen…)</li>
+          <li>Turn <b>POWER</b> for volume. <b>SERVE</b> = fullscreen. Open the <b>door</b> to pause.</li>
+          <li>Flip the <b>light switch</b> on the wall. Watch the picture light the kitchen.</li>
+        </ol>
+        <p class="k-card-foot">A <a href="https://videojs.org">Video.js v10</a> skin · <a href="./workbench.html">workbench</a></p>
+      </aside>
+    </main>
+    <script type="module" src="/src/kitchen/main.ts"></script>
+  </body>
+</html>
